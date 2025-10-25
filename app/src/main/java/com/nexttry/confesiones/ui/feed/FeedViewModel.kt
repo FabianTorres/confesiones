@@ -14,16 +14,28 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.SavedStateHandle
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+
+/**
+ * Define los criterios de ordenamiento disponibles para el feed.
+ */
+enum class SortOrder {
+    RECENT, // Ordenar por más reciente (timestamp)
+    POPULAR // Ordenar por más popular (likesCount)
+}
 
 // Define los diferentes estados que puede tener nuestra UI
 data class FeedUiState(
     val confesiones: List<Confesion> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val currentUserId: String? = null
+    val currentUserId: String? = null,
+    val sortOrder: SortOrder = SortOrder.RECENT
 )
+
+
 
 // Clase sellada para los eventos de una sola vez ---
 sealed class FeedScreenEvent {
@@ -50,6 +62,7 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
         iniciarSecuenciaDeCarga()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun iniciarSecuenciaDeCarga() {
         viewModelScope.launch {
             try {
@@ -59,10 +72,33 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                 //Se obtiene el UID y lo ponemos en el estado
                 val userId = Firebase.auth.currentUser?.uid
                 _uiState.update { it.copy(currentUserId = userId) }
-                // Se empieza a escuchar el feed
-                repository.getConfesionesStream(communityId)
+                // Usamos flatMapLatest (o switchMap) para que el stream se
+                // reinicie automáticamente cada vez que el estado de _uiState cambie
+                // (específicamente, cuando 'sortOrder' cambie).
+                _uiState
+                    .flatMapLatest { state ->
+                        // El stream ahora depende del 'state.sortOrder'
+                        repository.getConfesionesStream(communityId, state.sortOrder)
+                    }
+                    .catch { e ->
+                        // Si el nuevo stream falla (ej: por índice de Firestore faltante),
+                        // lo capturamos aquí.
+                        Log.e("FeedViewModel", "Error al colectar feed", e)
+                        _uiState.update {
+                            it.copy(
+                                error = "Error al cargar feed: ${e.message}",
+                                isLoading = false
+                            )
+                        }
+                    }
                     .collect { confesiones ->
-                        _uiState.update { it.copy(confesiones = confesiones, isLoading = false) }
+                        // Colectamos los nuevos datos y actualizamos la UI
+                        _uiState.update {
+                            it.copy(
+                                confesiones = confesiones,
+                                isLoading = false
+                            )
+                        }
                     }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Error al iniciar: ${e.message}", isLoading = false) }
@@ -124,6 +160,24 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                 _uiState.update { it.copy(error = "Error al procesar el like") }
                 _eventChannel.send(FeedScreenEvent.ShowSnackbar("Error al dar like"))
             }
+        }
+    }
+
+    /**
+     * Se llama cuando el usuario cambia el criterio de ordenamiento en la UI.
+     */
+    fun onSortOrderChanged(newSortOrder: SortOrder) {
+        // Evitamos recargar si el orden ya es el seleccionado
+        if (newSortOrder == _uiState.value.sortOrder) return
+
+        // Actualizamos el estado.
+        // Ponemos isLoading = true para mostrar un indicador
+        // mientras 'flatMapLatest' recarga el stream.
+        _uiState.update {
+            it.copy(
+                sortOrder = newSortOrder,
+                isLoading = true
+            )
         }
     }
 

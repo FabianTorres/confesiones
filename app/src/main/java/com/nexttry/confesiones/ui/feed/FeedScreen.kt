@@ -36,8 +36,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import com.nexttry.confesiones.ui.feed.FeedViewModel
+import com.nexttry.confesiones.ui.feed.SortOrder
 
 private const val TAG = "FeedScreen"
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,15 +128,23 @@ fun FeedScreen(communityId: String,
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.padding(padding).padding(horizontal = 16.dp)) {
+            // Le damos un padding vertical para separarlo
+            SortOrderSelector(
+                modifier = Modifier.padding(vertical = 8.dp),
+                currentSortOrder = uiState.sortOrder,
+                onSortChanged = { vm.onSortOrderChanged(it) }
+            )
+            // GESTIONAMOS EL ESTADO DE CARGA Y LA LISTA
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
                 LazyColumn(
+                    // El padding horizontal se fue a la Column padre
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.confesiones, key = { it.id }) { confesion ->
@@ -226,7 +239,8 @@ fun TarjetaConfesion(
                             )
                         }
                         Text(
-                            text = confesion.likes.size.toString(),
+                            //text = confesion.likes.size.toString(),
+                            text = confesion.likesCount.toString(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -353,6 +367,40 @@ fun PublicarConfesionUI(onPublish: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(end = 8.dp, bottom = 4.dp),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+        }
+    }
+}
+
+/**
+ * Muestra los botones segmentados para elegir el orden del feed.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortOrderSelector(
+    modifier: Modifier = Modifier,
+    currentSortOrder: SortOrder,
+    onSortChanged: (SortOrder) -> Unit
+) {
+    // Definimos las opciones en el orden que queremos mostrarlas
+    val options = listOf(SortOrder.RECENT, SortOrder.POPULAR)
+
+    SingleChoiceSegmentedButtonRow(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        options.forEachIndexed { index, sortOrder ->
+            SegmentedButton(
+                // Esto redondea los bordes exteriores
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                onClick = { onSortChanged(sortOrder) },
+                selected = (sortOrder == currentSortOrder)
+            ) {
+                // Obtenemos el texto basado en el enum
+                val text = when (sortOrder) {
+                    SortOrder.RECENT -> "Recientes"
+                    SortOrder.POPULAR -> "Populares"
+                }
+                Text(text)
+            }
         }
     }
 }

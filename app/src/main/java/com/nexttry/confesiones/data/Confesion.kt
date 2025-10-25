@@ -9,7 +9,6 @@ data class Confesion(
     val timestamp: Timestamp = Timestamp.now(),
     val userId: String = "",
     val likesCount: Long = 0,
-    val comentariosCount: Long = 0,
     val communityId: String = "",
     val likes: Map<String, Boolean> = emptyMap(),
     val commentsCount: Long = 0

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import android.util.Log
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -14,6 +15,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QuestionAnswer
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,10 +61,9 @@ fun AppNavigator(prefsRepository: UserPreferencesRepository) {
     val currentCommunityId = communityId
 
     if (currentCommunityId == null) {
-        // 1. Estado de carga: Aún estamos leyendo desde DataStore
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        // 1. Estado de carga: Reemplazamos el Box simple por nuestro
+        //    nuevo Composable de pantalla de carga.
+        AppSplashScreen()
     } else {
         // 2. Estado cargado: 'currentCommunityId' es ahora un String no-nulo (gracias al smart-cast)
         val startDestination = if (currentCommunityId.isEmpty()) {
@@ -135,6 +146,52 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                 onNavigateToConfession = { confessionId ->
                     navController.navigate("confession/$confessionId")
                 }
+            )
+        }
+    }
+}
+
+/**
+ * Pantalla de carga estilizada que se muestra al iniciar la app
+ * mientras se cargan las preferencias iniciales del DataStore.
+ */
+@Composable
+fun AppSplashScreen(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            // Usamos el color de fondo principal de la app
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Un ícono representativo de la app
+            Icon(
+                // Usamos un ícono de Material que sugiere "preguntas y respuestas" o "chat"
+                imageVector = Icons.Filled.QuestionAnswer,
+                contentDescription = "Logo de Confesiones",
+                modifier = Modifier.size(120.dp),
+                // Usamos el color primario del tema para el ícono
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Texto de bienvenida o carga
+            Text(
+                text = "Cargando confesiones...",
+                style = MaterialTheme.typography.titleMedium,
+                // Usamos el color de texto principal
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Mantenemos el indicador de progreso
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

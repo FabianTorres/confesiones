@@ -10,12 +10,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-// --- Importamos la tarjeta que ya tenemos ---
 import com.nexttry.confesiones.ui.feed.TarjetaConfesion
+import androidx.compose.material.icons.outlined.EditOff
+import com.nexttry.confesiones.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,12 +60,14 @@ fun MyPostsScreen(
                 }
                 // Estado vacío (no ha publicado nada)
                 uiState.myConfessions.isEmpty() -> {
-                    Text(
-                        text = "Aún no has publicado ninguna confesión.",
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                    // Reemplazamos el Text simple por el nuevo Composable
+                    Box(modifier = Modifier.align(Alignment.Center)) { // Centramos el componente
+                        EmptyState(
+                            icon = Icons.Outlined.EditOff,
+                            title = "Sin publicaciones",
+                            subtitle = "Aún no has publicado ninguna confesión. ¡Anímate a compartir algo!"
+                        )
+                    }
                 }
                 // Estado con datos: Mostramos la lista
                 else -> {

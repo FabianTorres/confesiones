@@ -3,7 +3,7 @@ package com.nexttry.confesiones.data
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.nexttry.confesiones.data.Comment
+import com.nexttry.confesiones.ui.feed.SortOrder
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -22,13 +22,33 @@ class ConfesionRepository {
     }
 
     // Devuelve un Flow que emite la lista de confesiones cada vez que hay un cambio
-    fun getConfesionesStream(communityId: String): Flow<List<Confesion>> = callbackFlow {
-        val listener = db.collection("confesiones")
-            .whereEqualTo("communityId", communityId) // El filtro mágico
-            .orderBy("timestamp", Query.Direction.DESCENDING)
+    fun getConfesionesStream(communityId: String, sortOrder: SortOrder): Flow<List<Confesion>> = callbackFlow {
+
+        // 1. Creamos la consulta base (solo el filtro)
+        val baseQuery = db.collection("confesiones")
+            .whereEqualTo("communityId", communityId)
+
+        // 2. Añadimos el ordenamiento dinámicamente
+        val finalQuery: Query = when (sortOrder) {
+            SortOrder.RECENT -> {
+                // Orden por defecto: más reciente primero
+                baseQuery.orderBy("timestamp", Query.Direction.DESCENDING)
+            }
+            SortOrder.POPULAR -> {
+                // Nuevo orden: más populares (más likes) primero
+                // Añadimos 'timestamp' como segundo orden para desempates
+                baseQuery
+                    .orderBy("likesCount", Query.Direction.DESCENDING)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+            }
+        }
+
+        // 3. El listener usa la consulta final
+        val listener = finalQuery
             .limit(50)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.w("ConfesionRepo", "Error escuchando confesiones", error)
                     close(error); return@addSnapshotListener
                 }
                 val confesiones = snapshot?.toObjects(Confesion::class.java) ?: emptyList()
@@ -86,8 +106,15 @@ class ConfesionRepository {
                     newLikes[userId] = true
                 }
 
-                // Actualizamos el documento en la transacción con el nuevo mapa
+                // Obtenemos el nuevo tamaño del contador
+                val newCount = newLikes.size.toLong()
+
+                // Actualizamos ambos campos en la transacción: el mapa y el contador
                 transaction.update(confesionRef, "likes", newLikes)
+                transaction.update(confesionRef, "likesCount", newCount)
+
+
+
 
             }.await()
         } catch (e: Exception) {

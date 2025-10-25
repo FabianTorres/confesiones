@@ -29,7 +29,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.Forum
+import com.nexttry.confesiones.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,14 +123,12 @@ fun ConfessionDetailScreen(
                     }
 
                     if (uiState.comments.isEmpty()) {
-                        // --- EDITADO: Estado Vacío para comentarios ---
+                        // Reemplazamos el Text simple por el nuevo Composable
                         item {
-                            Text(
-                                "Nadie ha comentado aún. ¡Sé el primero!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            EmptyState(
+                                icon = Icons.Outlined.Forum,
+                                title = "Sin comentarios",
+                                subtitle = "Nadie ha comentado aún. ¡Sé el primero!"
                             )
                         }
                     } else {
