@@ -1,6 +1,5 @@
 package com.nexttry.confesiones.ui.detail
 
-import android.util.Log
 import androidx.navigation.NavHostController
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +34,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Forum
 import com.nexttry.confesiones.ui.components.EmptyState
@@ -68,6 +69,9 @@ fun ConfessionDetailScreen(
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
+    // Calcular color con elevación
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+
     //LaunchedEffect para escuchar eventos ---
     LaunchedEffect(Unit) {
         vm.events.collect { event ->
@@ -95,9 +99,10 @@ fun ConfessionDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = appBarContainerColor,
+
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },

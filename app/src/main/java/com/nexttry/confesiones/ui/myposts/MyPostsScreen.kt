@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +26,8 @@ fun MyPostsScreen(
     vm: MyPostsViewModel = viewModel()
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+    // --- Calcular color con elevación ---
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
     Scaffold(
         topBar = {
@@ -36,9 +39,9 @@ fun MyPostsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },

@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
@@ -17,17 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.navigation.NavHostController
 import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.*
-import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -54,10 +50,10 @@ import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import com.nexttry.confesiones.ui.feed.FeedViewModel
-import com.nexttry.confesiones.ui.feed.SortOrder
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material.icons.filled.Add // Icono "+"
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ModalBottomSheet // Para la hoja deslizable
@@ -79,9 +75,6 @@ fun FeedScreen(navController: NavHostController,
     val context = LocalContext.current
     val application = context.applicationContext as Application
 
-
-
-    Log.d(TAG, "Creando la fábrica del ViewModel...")
     val vm: FeedViewModel = viewModel(
         key = communityId,
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -131,6 +124,10 @@ fun FeedScreen(navController: NavHostController,
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    // Calcular color con elevación
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+
     // --- PASO 2: Restaurar el LaunchedEffect, pero usando scrollToItem ---
     LaunchedEffect(uiState.sortOrder) {
         // Espera hasta que isLoading se vuelva 'false'
@@ -149,15 +146,26 @@ fun FeedScreen(navController: NavHostController,
 
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(uiState.communityName) },
+                title = {
+                            Text(
+                                text = uiState.communityName,
+                                // Limita el texto a una sola línea
+                                maxLines = 1,
+                                // Añade puntos suspensivos si el texto no cabe
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = appBarContainerColor,
+                    scrolledContainerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 ),
+                scrollBehavior = scrollBehavior,
                 actions = {
                     //  Se añadió el botón para "Mis Publicaciones" ---
                     IconButton(onClick = onNavigateToMyPosts) {
@@ -175,6 +183,7 @@ fun FeedScreen(navController: NavHostController,
                         )
                     }
                 }
+
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -184,8 +193,13 @@ fun FeedScreen(navController: NavHostController,
                 Icon(Icons.Filled.Add, contentDescription = "Añadir")
             }
         }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(horizontal = 16.dp)) {
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
             // Le damos un padding vertical para separarlo
             SortOrderSelector(
                 modifier = Modifier.padding(vertical = 8.dp),
@@ -203,6 +217,7 @@ fun FeedScreen(navController: NavHostController,
             // Usamos AnimatedVisibility para la lista cuando NO está cargando
             AnimatedVisibility(
                 visible = !uiState.isLoading, // Visible cuando isLoading es false
+                modifier = Modifier.weight(1f),
                 enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)), // Duración del fade-in
                 exit = fadeOut() // Puedes añadir un fade-out si quieres, aunque no es estrictamente necesario aquí
             ) {

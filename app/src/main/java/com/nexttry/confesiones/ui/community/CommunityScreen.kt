@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,16 +21,19 @@ private const val TAG = "CommunityScreen"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(vm: CommunityViewModel = viewModel(), onCommunitySelected: (String) -> Unit) {
-    Log.d(TAG, "CommunityScreen se está componiendo.")
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+
+    //Calcular color con elevación
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Elige tu Comunidad") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         }

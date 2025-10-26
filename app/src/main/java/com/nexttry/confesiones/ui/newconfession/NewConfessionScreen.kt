@@ -6,7 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -22,6 +22,9 @@ fun NewConfessionScreen(
     vm: NewConfessionViewModel = viewModel() // El ViewModel se asocia automáticamente
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+
+    // Calcular color con elevación
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
     // Efecto para navegar hacia atrás cuando publishSuccess sea true
     LaunchedEffect(uiState.publishSuccess) {
@@ -39,6 +42,11 @@ fun NewConfessionScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 actions = {
                     // Botón de publicar en la barra superior
                     IconButton(

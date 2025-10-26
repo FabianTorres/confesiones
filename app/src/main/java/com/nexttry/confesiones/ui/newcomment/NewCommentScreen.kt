@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,6 +22,9 @@ fun NewCommentScreen(
     vm: NewCommentViewModel = viewModel()
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+
+    // Calcular color con elevación
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
     LaunchedEffect(uiState.publishSuccess) {
         if (uiState.publishSuccess) {
@@ -37,6 +41,11 @@ fun NewCommentScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 actions = {
                     IconButton(
                         onClick = { vm.publishComment() },
