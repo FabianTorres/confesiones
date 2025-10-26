@@ -38,6 +38,8 @@ import com.nexttry.confesiones.ui.detail.ConfessionDetailScreen
 import com.nexttry.confesiones.ui.myposts.MyPostsScreen
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import com.nexttry.confesiones.ui.newconfession.NewConfessionScreen
+import com.nexttry.confesiones.ui.newcomment.NewCommentScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -103,6 +105,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
             val communityId = backStackEntry.arguments?.getString("communityId")
             if (communityId != null) {
                 FeedScreen(
+                    navController = navController,
                     communityId = communityId,
                     onChangeCommunity = {
                         navController.navigate("community_select") {
@@ -139,6 +142,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
             if (confessionId != null) {
                 // Llamamos a la nueva pantalla (que crearemos a continuación)
                 ConfessionDetailScreen(
+                    navController = navController,
                     confessionId = confessionId,
                     // Añadimos una acción para poder volver atrás
                     onNavigateBack = { navController.popBackStack() }
@@ -155,6 +159,30 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                     navController.navigate("confession/$confessionId")
                 }
             )
+        }
+
+        // RUTA 5: Nueva Confesión
+        composable(route = "new_confession/{communityId}") { backStackEntry ->
+            val communityId = backStackEntry.arguments?.getString("communityId")
+            if (communityId != null) {
+                NewConfessionScreen(
+                    communityId = communityId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            // Podrías añadir un else aquí para manejar el caso de communityId nulo si es necesario
+        }
+
+        // RUTA 6: Nuevo Comentario
+        composable(route = "new_comment/{confessionId}") { backStackEntry ->
+            val confessionId = backStackEntry.arguments?.getString("confessionId")
+            if (confessionId != null) {
+                NewCommentScreen(
+                    confessionId = confessionId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            // Podrías añadir un else aquí para manejar el caso de confessionId nulo
         }
     }
 }

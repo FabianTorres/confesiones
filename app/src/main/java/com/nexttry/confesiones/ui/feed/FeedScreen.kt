@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.navigation.NavHostController
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
@@ -56,11 +57,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.nexttry.confesiones.ui.feed.FeedViewModel
 import com.nexttry.confesiones.ui.feed.SortOrder
+import androidx.compose.material.icons.filled.Add // Icono "+"
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ModalBottomSheet // Para la hoja deslizable
+import androidx.compose.material3.rememberModalBottomSheetState // Estado de la hoja
+import androidx.compose.material3.ListItem // Para las opciones dentro de la hoja
+import androidx.compose.material3.Icon // Para iconos en las opciones
+import androidx.compose.material.icons.filled.Edit // Icono para "Nueva confesión"
 
 private const val TAG = "FeedScreen"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedScreen(communityId: String,
+fun FeedScreen(navController: NavHostController,
+               communityId: String,
                onChangeCommunity: () -> Unit,
                onNavigateToConfession: (String) -> Unit,
                onNavigateToMyPosts: () -> Unit) {
@@ -118,6 +127,9 @@ fun FeedScreen(communityId: String,
     // Bandera para evitar el scroll en la carga inicial
     var isInitialLoad by remember { mutableStateOf(true) }
 
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
+
     // --- PASO 2: Restaurar el LaunchedEffect, pero usando scrollToItem ---
     LaunchedEffect(uiState.sortOrder) {
         // Espera hasta que isLoading se vuelva 'false'
@@ -164,7 +176,13 @@ fun FeedScreen(communityId: String,
                 }
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        // Se añade el FLOATING ACTION BUTTON
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showBottomSheet = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Añadir")
+            }
+        }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(horizontal = 16.dp)) {
             // Le damos un padding vertical para separarlo
@@ -208,10 +226,38 @@ fun FeedScreen(communityId: String,
                     }
                 }
             }
-            if (!uiState.isLoading) {
-                PublicarConfesionUI(
-                    onPublish = { texto -> vm.publicarConfesion(texto) }
+//            if (!uiState.isLoading) {
+//                PublicarConfesionUI(
+//                    onPublish = { texto -> vm.publicarConfesion(texto) }
+//                )
+//            }
+        }
+    }
+
+    // Se añade el MODAL BOTTOM SHEET
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState
+        ) {
+            // Contenido de la hoja
+            Column(modifier = Modifier.padding(bottom = 32.dp)) { // Espacio extra abajo
+                // Opción 1: Nueva Confesión
+                ListItem(
+                    headlineContent = { Text("Nueva confesión") },
+                    leadingContent = {
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = "Nueva confesión"
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        showBottomSheet = false // Cierra la hoja
+                        // Navegamos a la nueva ruta pasando el communityId
+                        navController.navigate("new_confession/$communityId")
+                    }
                 )
+                // Aquí podrías añadir más ListItems para futuras opciones
             }
         }
     }
@@ -380,64 +426,6 @@ fun formatRelativeTime(timestamp: com.google.firebase.Timestamp): String {
     }
 }
 
-@Composable
-fun PublicarConfesionUI(onPublish: (String) -> Unit) {
-    var texto by remember { mutableStateOf("") }
-
-    val maxChars = 120
-    //El área de publicación ahora está en una Card para destacarla
-    Card(
-        modifier = Modifier.padding(8.dp),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = texto,
-                    onValueChange = { if (it.length <= maxChars) texto = it },
-                    label = { Text("Escribe algo...") },
-                    modifier = Modifier.weight(1f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                // Usamos un IconButton para un look más limpio ---
-                IconButton(
-                    onClick = {
-                        onPublish(texto)
-                        texto = ""
-                    },
-                    enabled = texto.isNotBlank()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Publicar Confesión"
-                    )
-                }
-            }
-
-            // --- NUEVO: Contador de caracteres visible ---
-            Text(
-                text = "${texto.length} / $maxChars",
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.End,
-                modifier = Modifier.fillMaxWidth().padding(end = 8.dp, bottom = 4.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        }
-    }
-}
 
 /**
  * Muestra los botones segmentados para elegir el orden del feed.

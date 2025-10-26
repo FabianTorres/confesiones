@@ -1,5 +1,7 @@
 package com.nexttry.confesiones.ui.detail
 
+import android.util.Log
+import androidx.navigation.NavHostController
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +12,7 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -35,10 +38,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Forum
 import com.nexttry.confesiones.ui.components.EmptyState
+import androidx.compose.material.icons.filled.Add // Icono "+"
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.AddComment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfessionDetailScreen(
+    navController: NavHostController,
     confessionId: String,
     onNavigateBack: () -> Unit,
     vm: ConfessionDetailViewModel = viewModel() // El ViewModel se crea automáticamente
@@ -53,6 +64,9 @@ fun ConfessionDetailScreen(
     // Estado para manejar los Snackbars ---
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     //LaunchedEffect para escuchar eventos ---
     LaunchedEffect(Unit) {
@@ -87,7 +101,12 @@ fun ConfessionDetailScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showBottomSheet = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Añadir")
+            }
+        }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             if (uiState.isLoading) {
@@ -149,7 +168,32 @@ fun ConfessionDetailScreen(
                     }
                 }
                 // 5. Campo para añadir un nuevo comentario (fijo abajo)
-                CommentInput(onCommentSent = { vm.postComment(it) })
+                //CommentInput(onCommentSent = { vm.postComment(it) })
+            }
+        }
+    }
+
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBottomSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
+                ListItem(
+                    headlineContent = { Text("Nuevo comentario") },
+                    leadingContent = {
+                        Icon(
+                            Icons.Filled.AddComment,
+                            contentDescription = "Nuevo comentario"
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        showBottomSheet = false
+                        // Navegamos a la nueva ruta pasando el confessionId
+                        navController.navigate("new_comment/$confessionId")
+                    }
+                )
+                // Más opciones futuras aquí...
             }
         }
     }
