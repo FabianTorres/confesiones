@@ -17,6 +17,7 @@ import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Job
 
 /**
  * Define los criterios de ordenamiento disponibles para el feed.
@@ -36,24 +37,33 @@ data class FeedUiState(
 )
 
 
-
 // Clase sellada para los eventos de una sola vez ---
 sealed class FeedScreenEvent {
     data class ShowSnackbar(val message: String) : FeedScreenEvent()
     // Podríamos añadir más eventos aquí si fuera necesario (ej: Navigate)
 }
 
-class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
+class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle) :
+    AndroidViewModel(application) {
 
     private val repository = ConfesionRepository()
     private val prefsRepository = UserPreferencesRepository(application)
+
     // Leemos el communityId que nos pasó la UI
     private val communityId: String = savedStateHandle.get<String>("communityId")!!
     private val _uiState = MutableStateFlow(FeedUiState())
     val uiState = _uiState.asStateFlow()
 
+    // Para rastrear el último like optimista y evitar el parpadeo
+    private var lastOptimisticLikeId: String? = null
+    private var lastOptimisticLikeTime: Long = 0L
+    private val debounceFirestoreMillis =
+        750L // Tiempo (ms) para ignorar updates de Firestore post-like
+
+
     // Usamos un Channel para enviar eventos desde las coroutines de forma segura.
     private val _eventChannel = Channel<FeedScreenEvent>()
+
     // Convertimos el Channel en un SharedFlow para que la UI lo observe.
     val events = _eventChannel.receiveAsFlow()
 
@@ -91,17 +101,64 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                             )
                         }
                     }
-                    .collect { confesiones ->
+                    .collect { confesionesFromFirestore ->
+
+                        val now = System.currentTimeMillis()
+                        val recentlyLikedId = lastOptimisticLikeId
+                        val currentUserId = _uiState.value.currentUserId
+
+                        // ¿Acabamos de hacer un like optimista Y esta actualización llegó muy rápido?
+                        if (recentlyLikedId != null && (now - lastOptimisticLikeTime < debounceFirestoreMillis)) {
+                            // Buscamos si la confesión likeada está en la lista que llegó de Firestore
+                            val confessionInUpdate =
+                                confesionesFromFirestore.find { it.id == recentlyLikedId }
+                            // Buscamos la versión optimista que tenemos en la UI actual
+                            val optimisticConfession =
+                                _uiState.value.confesiones.find { it.id == recentlyLikedId }
+
+                            // Si encontramos ambas y la de Firestore NO tiene el like que SÍ tiene la optimista...
+                            if (confessionInUpdate != null && optimisticConfession != null) { // Comparamos contadores
+                                val userLikedInFirestore =
+                                    confessionInUpdate.likes.containsKey(currentUserId)
+                                val userLikedOptimistically =
+                                    optimisticConfession.likes.containsKey(currentUserId)
+                                if (userLikedInFirestore != userLikedOptimistically) {
+
+
+                                    // Si son diferentes, significa que la versión de Firestore es "vieja"
+                                    // Ignoramos esta actualización.
+                                    Log.d(
+                                        "FeedViewModel",
+                                        "Ignorando update de Firestore para $recentlyLikedId para evitar parpadeo (like/dislike)."
+                                    )
+                                    return@collect
+                                } else {
+                                    // Si son iguales, Firestore ya está actualizado, reseteamos.
+                                    lastOptimisticLikeId = null
+                                }
+                            } else {
+                                // Si la de Firestore ya tiene el like (o es otra confesión), reseteamos el tracker
+                                lastOptimisticLikeId = null
+                            }
+                        } else {
+                            // Si no hubo like reciente o ya pasó el tiempo, reseteamos el tracker
+                            lastOptimisticLikeId = null
+                        }
                         // Colectamos los nuevos datos y actualizamos la UI
                         _uiState.update {
                             it.copy(
-                                confesiones = confesiones,
+                                confesiones = confesionesFromFirestore,
                                 isLoading = false
                             )
                         }
                     }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Error al iniciar: ${e.message}", isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        error = "Error al iniciar: ${e.message}",
+                        isLoading = false
+                    )
+                }
             }
         }
     }
@@ -126,37 +183,43 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
     fun onLikeClicked(confesionId: String) {
         val userId = _uiState.value.currentUserId ?: return
 
-        // 1. Hacemos una copia local de la lista actual de confesiones.
-        val confesionesActuales = _uiState.value.confesiones
-
-        // 2. Creamos una nueva lista "optimista"
-        val confesionesOptmistas = confesionesActuales.map { confesion ->
-            if (confesion.id == confesionId) {
-                // Si esta es la confesión que se está likeando, la modificamos localmente.
-                val likesMutables = confesion.likes.toMutableMap()
-                if (likesMutables.containsKey(userId)) {
-                    likesMutables.remove(userId) // Optimista: Quitar like
+        // 1. Actualizamos el estado directamente
+        _uiState.update { currentState ->
+            // Mapeamos la lista actual para encontrar y modificar la confesión
+            val optimisticConfessions = currentState.confesiones.map { confesion ->
+                if (confesion.id == confesionId) {
+                    // Modificamos esta confesión
+                    val optimisticLikes = confesion.likes.toMutableMap()
+                    if (optimisticLikes.containsKey(userId)) {
+                        optimisticLikes.remove(userId)
+                    } else {
+                        optimisticLikes[userId] = true
+                    }
+                    val optimisticCount = optimisticLikes.size.toLong()
+                    // Devolvemos la copia modificada
+                    confesion.copy(likes = optimisticLikes, likesCount = optimisticCount)
                 } else {
-                    likesMutables[userId] = true // Optimista: Poner like
+                    // Devolvemos las otras sin cambios
+                    confesion
                 }
-                confesion.copy(likes = likesMutables) // Devolvemos la confesión modificada
-            } else {
-                confesion // Devolvemos las otras confesiones sin cambios
             }
+            // Devolvemos el nuevo estado con la lista optimista
+            currentState.copy(confesiones = optimisticConfessions)
         }
 
-        // 3. Actualizamos la UI con la lista optimista.
-        // El usuario ve el cambio al instante.
-        _uiState.update { it.copy(confesiones = confesionesOptmistas) }
+        lastOptimisticLikeId = confesionId
+        lastOptimisticLikeTime = System.currentTimeMillis()
 
 
-        // 4. AHORA, en segundo plano, enviamos la petición real al servidor.
+        // 2. AHORA, en segundo plano, enviamos la petición real al servidor.
         viewModelScope.launch {
             try {
                 repository.toggleLike(confesionId, userId)
+                // Si falla, el listener de Firestore eventualmente corregirá la UI
             } catch (e: Exception) {
-                // Si la petición falla (ej: sin internet), lo registramos.
-                Log.e("ViewModel-Like", "Error en onLikeClicked", e)
+                Log.e("ViewModel-Like", "Error en onLikeClicked (repo)", e)
+                // Podríamos intentar revertir aquí, pero es complejo con la lista.
+                // Dejaremos que el listener de Firestore lo corrija eventualmente.
                 _uiState.update { it.copy(error = "Error al procesar el like") }
                 _eventChannel.send(FeedScreenEvent.ShowSnackbar("Error al dar like"))
             }
@@ -185,7 +248,10 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
      * Se llama cuando el usuario presiona el botón de reportar en una confesión del feed.
      */
     fun onReportConfessionClicked(confessionId: String, reason: String) {
-        Log.d("ViewModel-Report", "Reporte solicitado para confesión ID: $confessionId") // <-- LOG AQUÍ
+        Log.d(
+            "ViewModel-Report",
+            "Reporte solicitado para confesión ID: $confessionId"
+        ) // <-- LOG AQUÍ
         val userId = _uiState.value.currentUserId ?: return // Necesitamos el ID del reportante
         viewModelScope.launch {
             try {

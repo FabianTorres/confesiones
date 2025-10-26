@@ -6,7 +6,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Send
@@ -225,12 +229,25 @@ fun ConfessionDetailCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    val scale by animateFloatAsState(
+                        targetValue = if (isLiked) 1.1f else 1.0f,
+                        animationSpec = spring( // Asegúrate de que 'spring' tenga ()
+                            // Usa Spring. (con S mayúscula) para las constantes
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "DetailLikeScaleAnimation"
+                    )
                     // Botón de Like
                     IconButton(onClick = onLikeClicked, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale
+                            )
                         )
                     }
                     // Contador de Likes
@@ -255,7 +272,7 @@ fun ConfessionDetailCard(
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Flag,
+                            imageVector = Icons.Outlined.Flag,
                             contentDescription = "Reportar Confesión",
                             tint = if (reportClicked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
@@ -309,7 +326,7 @@ fun CommentCard(comment: Comment, onReportClicked: () -> Unit) {
                     .size(18.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Flag,
+                    imageVector = Icons.Outlined.Flag,
                     contentDescription = "Reportar Comentario",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )

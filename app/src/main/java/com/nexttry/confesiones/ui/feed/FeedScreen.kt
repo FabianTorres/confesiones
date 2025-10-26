@@ -2,22 +2,34 @@ package com.nexttry.confesiones.ui.feed
 
 import android.app.Application
 import android.util.Log
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.*
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +67,8 @@ fun FeedScreen(communityId: String,
     //  Obtenemos el contexto y la aplicación
     val context = LocalContext.current
     val application = context.applicationContext as Application
+
+
 
     Log.d(TAG, "Creando la fábrica del ViewModel...")
     val vm: FeedViewModel = viewModel(
@@ -97,6 +111,29 @@ fun FeedScreen(communityId: String,
 
     var showReportDialog by remember { mutableStateOf(false) }
     var itemToReport by remember { mutableStateOf<String?>(null) }
+
+    // Crear y recordar el estado del LazyColumn
+    val lazyListState = rememberLazyListState()
+    // Bandera para evitar el scroll en la carga inicial
+    var isInitialLoad by remember { mutableStateOf(true) }
+
+    // --- PASO 2: Restaurar el LaunchedEffect, pero usando scrollToItem ---
+    LaunchedEffect(uiState.sortOrder) {
+        // Espera hasta que isLoading se vuelva 'false'
+        snapshotFlow { uiState.isLoading }
+            .filter { !it }
+            .first() // Suspende hasta que isLoading sea false
+
+        // Una vez que isLoading es false...
+        if (uiState.confesiones.isNotEmpty()) {
+            // Usamos scrollToItem (SIN animación) para un reseteo instantáneo
+            lazyListState.scrollToItem(index = 0)
+            Log.d(TAG, "Scroll INSTANTÁNEO al inicio ejecutado tras cambio de orden.")
+        }
+    }
+
+
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -111,7 +148,7 @@ fun FeedScreen(communityId: String,
                     //  Se añadió el botón para "Mis Publicaciones" ---
                     IconButton(onClick = onNavigateToMyPosts) {
                         Icon(
-                            imageVector = Icons.Default.Person, // Ícono de persona
+                            imageVector = Icons.Outlined.AccountCircle,
                             contentDescription = "Mis Publicaciones"
                         )
                     }
@@ -136,28 +173,41 @@ fun FeedScreen(communityId: String,
                 onSortChanged = { vm.onSortOrderChanged(it) }
             )
             // GESTIONAMOS EL ESTADO DE CARGA Y LA LISTA
+            // Mantenemos el Box con CircularProgressIndicator para el estado de carga
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-            } else {
-                LazyColumn(
-                    // El padding horizontal se fue a la Column padre
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.confesiones, key = { it.id }) { confesion ->
-                        TarjetaConfesion(
-                            confesion = confesion,
-                            isLikedByCurrentUser = uiState.currentUserId in confesion.likes,
-                            onLikeClicked = { vm.onLikeClicked(confesion.id) },
-                            onCardClicked = { onNavigateToConfession(confesion.id) },
-                            onReportClicked = { itemToReport = confesion.id
-                                                showReportDialog = true }
-                        )
+            }
+
+            // Usamos AnimatedVisibility para la lista cuando NO está cargando
+            AnimatedVisibility(
+                visible = !uiState.isLoading, // Visible cuando isLoading es false
+                enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)), // Duración del fade-in
+                exit = fadeOut() // Puedes añadir un fade-out si quieres, aunque no es estrictamente necesario aquí
+            ) {
+
+                Column(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(), // Ocupa el espacio de la Column padre
+                        state = lazyListState,
+                        contentPadding = PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(uiState.confesiones, key = { it.id }) { confesion ->
+                            TarjetaConfesion(
+                                confesion = confesion,
+                                isLikedByCurrentUser = uiState.currentUserId in confesion.likes,
+                                onLikeClicked = { vm.onLikeClicked(confesion.id) },
+                                onCardClicked = { onNavigateToConfession(confesion.id) },
+                                onReportClicked = { itemToReport = confesion.id
+                                    showReportDialog = true }
+                            )
+                        }
                     }
                 }
+            }
+            if (!uiState.isLoading) {
                 PublicarConfesionUI(
                     onPublish = { texto -> vm.publicarConfesion(texto) }
                 )
@@ -213,7 +263,7 @@ fun TarjetaConfesion(
                 maxLines = 4, // Aproximadamente 120 caracteres, ajusta si es necesario
                 overflow = TextOverflow.Ellipsis // Muestra "..." si el texto es más largo
             )
-            Spacer(modifier = Modifier.height(12.dp)) // Espacio vertical
+            Spacer(modifier = Modifier.height(16.dp)) // Espacio vertical
 
             // Fila inferior con acciones y metadatos
             Row(
@@ -231,11 +281,25 @@ fun TarjetaConfesion(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        // 1. Define el estado animado para la escala
+                        val scale by animateFloatAsState(
+                            targetValue = if (isLikedByCurrentUser) 1.1f else 1.0f,
+                            animationSpec = spring( // Asegúrate de que 'spring' tenga ()
+                                // Usa Spring. (con S mayúscula) para las constantes
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "LikeScaleAnimation"
+                        )
                         IconButton(onClick = onLikeClicked, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 imageVector = if (isLikedByCurrentUser) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Like",
-                                tint = if (isLikedByCurrentUser) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                tint = if (isLikedByCurrentUser) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale
+                                )
                             )
                         }
                         Text(
@@ -280,7 +344,7 @@ fun TarjetaConfesion(
                         modifier = Modifier.size(20.dp) // Tamaño más pequeño para la bandera
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Flag,
+                            imageVector = Icons.Outlined.Flag,
                             contentDescription = "Reportar",
                             // Cambia el color a rojo si se acaba de hacer clic, si no, grisáceo
                             tint = if (reportClicked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)

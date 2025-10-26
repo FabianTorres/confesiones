@@ -94,11 +94,42 @@ class ConfessionDetailViewModel(
      */
     fun onLikeClicked() {
         val userId = _uiState.value.currentUserId ?: return
+        // Obtenemos la confesión actual del estado
+        val currentConfession = _uiState.value.confession ?: return
+
+        // --- INICIO: LÓGICA OPTIMISTA ---
+        // 1. Creamos el mapa de likes optimista
+        val optimisticLikes = currentConfession.likes.toMutableMap()
+        val currentlyLiked = optimisticLikes.containsKey(userId)
+        if (currentlyLiked) {
+            optimisticLikes.remove(userId)
+        } else {
+            optimisticLikes[userId] = true
+        }
+        // Calculamos el contador optimista
+        val optimisticCount = optimisticLikes.size.toLong()
+
+        // 2. Creamos la confesión optimista
+        val optimisticConfession = currentConfession.copy(
+            likes = optimisticLikes,
+            likesCount = optimisticCount
+        )
+
+        // 3. Actualizamos la UI INMEDIATAMENTE
+        _uiState.update { it.copy(confession = optimisticConfession) }
+        // --- FIN: LÓGICA OPTIMISTA ---
+
+        // 4. AHORA, en segundo plano, llamamos al repositorio
         viewModelScope.launch {
             try {
+                // Pasamos el ID de la confesión (el estado ya fue actualizado)
                 repository.toggleLike(confessionId, userId)
+                // Nota: Si la operación falla, la UI se quedará en el estado optimista.
+                // Podríamos añadir lógica para revertir si falla, pero por ahora lo dejamos así.
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Error al procesar like") }
+                Log.e("DetailVM-Like", "Error en onLikeClicked (repo)", e) // Log específico
+                // Podríamos intentar revertir la UI aquí si quisiéramos
+                _uiState.update { it.copy(error = "Error al procesar like", confession = currentConfession) } // Revertir
                 _eventChannel.send(DetailScreenEvent.ShowSnackbar("Error al dar like"))
             }
         }
