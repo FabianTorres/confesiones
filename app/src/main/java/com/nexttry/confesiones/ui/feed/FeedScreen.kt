@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.*
@@ -248,7 +249,7 @@ fun TarjetaConfesion(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             // Mantenemos el fondo semi-transparente
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Aumentamos la sombra
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)) // Borde muy sutil
@@ -401,10 +402,13 @@ fun PublicarConfesionUI(onPublish: (String) -> Unit) {
                     onValueChange = { if (it.length <= maxChars) texto = it },
                     label = { Text("Escribe algo...") },
                     modifier = Modifier.weight(1f),
-                    colors = TextFieldDefaults.colors(
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))

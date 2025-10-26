@@ -199,7 +199,7 @@ fun ConfessionDetailCard(
     Card(
         shape = RoundedCornerShape(16.dp), // Bordes redondeados
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Añade sombra
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) { // Padding interno
             // Texto principal de la confesión
@@ -295,7 +295,7 @@ fun CommentCard(comment: Comment, onReportClicked: () -> Unit) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f)
         )
     ) {
         // --- EDITADO: Box es ahora el único hijo directo de la Card ---
@@ -363,10 +363,15 @@ fun CommentInput(onCommentSent: (String) -> Unit) {
                     onValueChange = { if (it.length <= maxChars) text = it },
                     label = { Text("Escribe un comentario...") },
                     modifier = Modifier.weight(1f), // Ocupa el espacio horizontal restante
-                    colors = TextFieldDefaults.colors(
+                    colors = OutlinedTextFieldDefaults.colors(
+                        // Colores para el borde y el label cuando está enfocado
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        // Mantenemos los colores de container transparentes si quieres
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent // Opcional
                     ),
                     // --- EDITADO: Se añadieron minLines y maxLines ---
                     minLines = 1, // Altura mínima de 1 línea

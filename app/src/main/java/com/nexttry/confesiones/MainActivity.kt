@@ -36,6 +36,9 @@ import com.nexttry.confesiones.ui.feed.FeedScreen
 import com.nexttry.confesiones.ui.theme.ConfesionesTheme
 import com.nexttry.confesiones.ui.detail.ConfessionDetailScreen
 import com.nexttry.confesiones.ui.myposts.MyPostsScreen
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,11 +86,16 @@ fun AppNavigator(prefsRepository: UserPreferencesRepository) {
 /**
  * El NavHost que contiene todas las pantallas de la app.
  */
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AppNavHost(navController: NavHostController, startDestination: String) {
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
+        exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
+        popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
+        popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) }
     ) {
         // --- RUTA 1: La pantalla del Feed ---
         composable(route = "feed/{communityId}") { backStackEntry ->

@@ -19,11 +19,14 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = Pink80,
     background = Navy, // Fondo oscuro
     surface = Navy, // Superficie de las tarjetas
+    // Un color ligeramente más claro para las tarjetas y otros contenedores elevados.
+    surfaceContainer = Color(0xFF1F435B),
     onPrimary = Color.Black,
     onSecondary = Color.Black,
     onTertiary = Color.Black,
     onBackground = Chartreuse, // Texto claro y legible
     onSurface = Chartreuse, // Texto en las tarjetas
+    onSurfaceVariant = Chartreuse.copy(alpha = 0.8f)
 )
 
 // --- EDITADO: Paleta de colores para el tema claro (la dejamos por si acaso) ---
