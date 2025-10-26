@@ -10,6 +10,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import com.nexttry.confesiones.data.Community
 
 class ConfesionRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -237,5 +238,22 @@ class ConfesionRepository {
         }
         // Cerramos el listener cuando el Flow se cancela
         awaitClose { listener.remove() }
+    }
+
+    /**
+     * Obtiene los datos de una comunidad específica por su ID.
+     * @param communityId El ID del documento de la comunidad.
+     * @return El objeto Community o null si no se encuentra.
+     */
+    suspend fun getCommunityById(communityId: String): Community? {
+        return try {
+            db.collection("comunidades").document(communityId)
+                .get()
+                .await()
+                .toObject(Community::class.java)
+        } catch (e: Exception) {
+            Log.e("ConfesionRepo", "Error al obtener comunidad por ID: $communityId", e)
+            null // Devuelve null si hay un error
+        }
     }
 }

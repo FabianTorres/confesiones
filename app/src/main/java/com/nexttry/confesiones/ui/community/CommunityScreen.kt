@@ -25,7 +25,13 @@ fun CommunityScreen(vm: CommunityViewModel = viewModel(), onCommunitySelected: (
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Elige tu Comunidad") })
+            TopAppBar(
+                title = { Text("Elige tu Comunidad") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
         }
     ) { padding ->
         Column(

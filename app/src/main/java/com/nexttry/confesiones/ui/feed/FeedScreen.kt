@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.navigation.NavHostController
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
@@ -151,7 +152,7 @@ fun FeedScreen(navController: NavHostController,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Confesiones Anónimas") },
+                title = { Text(uiState.communityName) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -169,7 +170,7 @@ fun FeedScreen(navController: NavHostController,
                     IconButton(onClick = onChangeCommunity) {
                         Icon(
 
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                            imageVector = Icons.Outlined.SwapHoriz,
                             contentDescription = "Cambiar de Comunidad"
                         )
                     }

@@ -33,7 +33,8 @@ data class FeedUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val currentUserId: String? = null,
-    val sortOrder: SortOrder = SortOrder.RECENT
+    val sortOrder: SortOrder = SortOrder.RECENT,
+    val communityName: String = "Cargando..."
 )
 
 
@@ -76,6 +77,10 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
     private fun iniciarSecuenciaDeCarga() {
         viewModelScope.launch {
             try {
+
+                // Cargamos el nombre de la comunidad ANTES de empezar a escuchar el feed
+                val community = repository.getCommunityById(communityId)
+                _uiState.update { it.copy(communityName = community?.nombre ?: "Comunidad Desconocida") }
 
                 // Se asegura el login
                 repository.asegurarLoginAnonimo()
