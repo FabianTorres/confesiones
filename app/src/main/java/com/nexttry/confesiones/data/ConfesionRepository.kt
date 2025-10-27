@@ -42,6 +42,10 @@ class ConfesionRepository {
                     .orderBy("likesCount", Query.Direction.DESCENDING)
                     .orderBy("timestamp", Query.Direction.DESCENDING)
             }
+            SortOrder.OLDEST -> {
+                // Ordenar por timestamp Ascendente (más viejos primero)
+                baseQuery.orderBy("timestamp", Query.Direction.ASCENDING)
+            }
         }
 
         // 3. El listener usa la consulta final
@@ -49,7 +53,7 @@ class ConfesionRepository {
             .limit(50)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.w("ConfesionRepo", "Error escuchando confesiones", error)
+
                     close(error); return@addSnapshotListener
                 }
                 val confesiones = snapshot?.toObjects(Confesion::class.java) ?: emptyList()

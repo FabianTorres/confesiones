@@ -24,7 +24,9 @@ import kotlinx.coroutines.Job
  */
 enum class SortOrder {
     RECENT, // Ordenar por más reciente (timestamp)
-    POPULAR // Ordenar por más popular (likesCount)
+    POPULAR, // Ordenar por más popular (likesCount)
+
+    OLDEST
 }
 
 // Define los diferentes estados que puede tener nuestra UI

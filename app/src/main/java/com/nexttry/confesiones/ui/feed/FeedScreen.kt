@@ -47,9 +47,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
@@ -61,6 +58,11 @@ import androidx.compose.material3.rememberModalBottomSheetState // Estado de la 
 import androidx.compose.material3.ListItem // Para las opciones dentro de la hoja
 import androidx.compose.material3.Icon // Para iconos en las opciones
 import androidx.compose.material.icons.filled.Edit // Icono para "Nueva confesión"
+import androidx.compose.material.icons.outlined.FilterList // Icono de Filtro
+import androidx.compose.material3.RadioButton // Para seleccionar el orden
+import androidx.compose.foundation.selection.selectableGroup // Para agrupar RadioButtons
+import androidx.compose.foundation.selection.selectable // Para hacer clickables los ListItems
+import androidx.compose.material3.Text
 
 private const val TAG = "FeedScreen"
 @OptIn(ExperimentalMaterial3Api::class)
@@ -119,12 +121,21 @@ fun FeedScreen(navController: NavHostController,
     // Crear y recordar el estado del LazyColumn
     val lazyListState = rememberLazyListState()
     // Bandera para evitar el scroll en la carga inicial
-    var isInitialLoad by remember { mutableStateOf(true) }
+    //var isInitialLoad by remember { mutableStateOf(true) }
 
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+
+    // --- ESTADO PARA BOTTOM SHEET DE ACCIONES (el del FAB) ---
+    //val addActionSheetState = rememberModalBottomSheetState()
+    var showAddActionSheet by remember { mutableStateOf(false) }
+
+    // --- ESTADO PARA BOTTOM SHEET DE FILTROS ---
+    val filterSheetState = rememberModalBottomSheetState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+
     // Calcular color con elevación
     val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
@@ -167,6 +178,15 @@ fun FeedScreen(navController: NavHostController,
                 ),
                 scrollBehavior = scrollBehavior,
                 actions = {
+                    // icono de filtro
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.FilterList,
+                            contentDescription = "Filtrar y Ordenar"
+                        )
+                    }
+
+
                     //  Se añadió el botón para "Mis Publicaciones" ---
                     IconButton(onClick = onNavigateToMyPosts) {
                         Icon(
@@ -189,7 +209,7 @@ fun FeedScreen(navController: NavHostController,
         containerColor = MaterialTheme.colorScheme.background,
         // Se añade el FLOATING ACTION BUTTON
         floatingActionButton = {
-            FloatingActionButton(onClick = { showBottomSheet = true }) {
+            FloatingActionButton(onClick = { showAddActionSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Añadir")
             }
         }
@@ -201,11 +221,11 @@ fun FeedScreen(navController: NavHostController,
                 .padding(horizontal = 16.dp)
         ) {
             // Le damos un padding vertical para separarlo
-            SortOrderSelector(
-                modifier = Modifier.padding(vertical = 8.dp),
-                currentSortOrder = uiState.sortOrder,
-                onSortChanged = { vm.onSortOrderChanged(it) }
-            )
+//            SortOrderSelector(
+//                modifier = Modifier.padding(vertical = 8.dp),
+//                currentSortOrder = uiState.sortOrder,
+//                onSortChanged = { vm.onSortOrderChanged(it) }
+//            )
             // GESTIONAMOS EL ESTADO DE CARGA Y LA LISTA
             // Mantenemos el Box con CircularProgressIndicator para el estado de carga
             if (uiState.isLoading) {
@@ -242,16 +262,11 @@ fun FeedScreen(navController: NavHostController,
                     }
                 }
             }
-//            if (!uiState.isLoading) {
-//                PublicarConfesionUI(
-//                    onPublish = { texto -> vm.publicarConfesion(texto) }
-//                )
-//            }
         }
     }
 
-    // Se añade el MODAL BOTTOM SHEET
-    if (showBottomSheet) {
+    // BOTTOM SHEET DE ACCIONES
+    if (showAddActionSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false },
             sheetState = sheetState
@@ -274,6 +289,84 @@ fun FeedScreen(navController: NavHostController,
                     }
                 )
                 // Aquí podrías añadir más ListItems para futuras opciones
+            }
+        }
+    }
+
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = filterSheetState
+        ) {
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
+                // Título de la sección
+                Text(
+                    "Ordenar por",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                // Grupo de RadioButtons para asegurar selección única
+                Column(Modifier.selectableGroup()) {
+                    // Opción: Recientes
+                    ListItem(
+                        headlineContent = { Text("Más Recientes") },
+                        leadingContent = {
+                            RadioButton(
+                                selected = (uiState.sortOrder == SortOrder.RECENT),
+                                onClick = null // El clic se maneja en el Modifier del ListItem
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (uiState.sortOrder == SortOrder.RECENT),
+                                onClick = {
+                                    vm.onSortOrderChanged(SortOrder.RECENT)
+                                    showFilterSheet = false // Cierra el sheet al seleccionar
+                                }
+                            )
+                    )
+                    // Opción: Populares
+                    ListItem(
+                        headlineContent = { Text("Más Populares") },
+                        leadingContent = {
+                            RadioButton(
+                                selected = (uiState.sortOrder == SortOrder.POPULAR),
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (uiState.sortOrder == SortOrder.POPULAR),
+                                onClick = {
+                                    vm.onSortOrderChanged(SortOrder.POPULAR)
+                                    showFilterSheet = false
+                                }
+                            )
+                    )
+                    // Opción: Antiguos
+                    ListItem(
+                        headlineContent = { Text("Más Antiguos") },
+                        leadingContent = {
+                            RadioButton(
+                                selected = (uiState.sortOrder == SortOrder.OLDEST),
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = (uiState.sortOrder == SortOrder.OLDEST),
+                                onClick = {
+                                    vm.onSortOrderChanged(SortOrder.OLDEST)
+                                    showFilterSheet = false
+                                }
+                            )
+                    )
+                }
+                // Aquí podrías añadir secciones para Rango de Tiempo si implementas "Trending"
             }
         }
     }
@@ -439,40 +532,5 @@ fun formatRelativeTime(timestamp: com.google.firebase.Timestamp): String {
         minutes < 60 -> "Hace $minutes min"
         hours < 24 -> "Hace $hours h"
         else -> SimpleDateFormat("dd MMM", Locale.getDefault()).format(timestamp.toDate())
-    }
-}
-
-
-/**
- * Muestra los botones segmentados para elegir el orden del feed.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SortOrderSelector(
-    modifier: Modifier = Modifier,
-    currentSortOrder: SortOrder,
-    onSortChanged: (SortOrder) -> Unit
-) {
-    // Definimos las opciones en el orden que queremos mostrarlas
-    val options = listOf(SortOrder.RECENT, SortOrder.POPULAR)
-
-    SingleChoiceSegmentedButtonRow(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        options.forEachIndexed { index, sortOrder ->
-            SegmentedButton(
-                // Esto redondea los bordes exteriores
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                onClick = { onSortChanged(sortOrder) },
-                selected = (sortOrder == currentSortOrder)
-            ) {
-                // Obtenemos el texto basado en el enum
-                val text = when (sortOrder) {
-                    SortOrder.RECENT -> "Recientes"
-                    SortOrder.POPULAR -> "Populares"
-                }
-                Text(text)
-            }
-        }
     }
 }
