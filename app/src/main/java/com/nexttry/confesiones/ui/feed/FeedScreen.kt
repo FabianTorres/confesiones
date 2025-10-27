@@ -7,6 +7,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.WindowInsets
+import com.nexttry.confesiones.ui.feed.TimeRange
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.foundation.clickable
@@ -43,6 +45,10 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -268,8 +274,9 @@ fun FeedScreen(navController: NavHostController,
     // BOTTOM SHEET DE ACCIONES
     if (showAddActionSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showBottomSheet = false },
-            sheetState = sheetState
+            onDismissRequest = { showAddActionSheet = false },
+            sheetState = sheetState,
+            contentWindowInsets = { WindowInsets(0.dp) }
         ) {
             // Contenido de la hoja
             Column(modifier = Modifier.padding(bottom = 32.dp)) { // Espacio extra abajo
@@ -283,7 +290,7 @@ fun FeedScreen(navController: NavHostController,
                         )
                     },
                     modifier = Modifier.clickable {
-                        showBottomSheet = false // Cierra la hoja
+                        showAddActionSheet = false // Cierra la hoja
                         // Navegamos a la nueva ruta pasando el communityId
                         navController.navigate("new_confession/$communityId")
                     }
@@ -296,7 +303,8 @@ fun FeedScreen(navController: NavHostController,
     if (showFilterSheet) {
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
-            sheetState = filterSheetState
+            sheetState = filterSheetState,
+            contentWindowInsets = { WindowInsets(0.dp) }
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
                 // Título de la sección
@@ -340,10 +348,7 @@ fun FeedScreen(navController: NavHostController,
                             .fillMaxWidth()
                             .selectable(
                                 selected = (uiState.sortOrder == SortOrder.POPULAR),
-                                onClick = {
-                                    vm.onSortOrderChanged(SortOrder.POPULAR)
-                                    showFilterSheet = false
-                                }
+                                onClick = { vm.onSortOrderChanged(SortOrder.POPULAR) } // Solo cambia el estado
                             )
                     )
                     // Opción: Antiguos
@@ -366,7 +371,29 @@ fun FeedScreen(navController: NavHostController,
                             )
                     )
                 }
-                // Aquí podrías añadir secciones para Rango de Tiempo si implementas "Trending"
+
+                // --- AÑADIR SECCIÓN RANGO DE TIEMPO (Solo si Populares está activo) ---
+                AnimatedVisibility(visible = uiState.sortOrder == SortOrder.POPULAR) {
+                    Column {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) // Separador visual
+                        Text(
+                            "Popularidad en",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                        // Botones segmentados para el rango de tiempo
+                        TimeRangeSelector(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            selectedTimeRange = uiState.selectedTimeRange,
+                            onTimeRangeSelected = { timeRange ->
+                                vm.onTimeRangeChanged(timeRange)
+                                // Cerramos el sheet DESPUÉS de seleccionar el rango
+                                showFilterSheet = false
+                            }
+                        )
+                    }
+                }
+
             }
         }
     }
@@ -514,6 +541,37 @@ fun TarjetaConfesion(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f) // Color grisáceo
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Muestra los botones segmentados para elegir el rango de tiempo.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeRangeSelector(
+    modifier: Modifier = Modifier,
+    selectedTimeRange: TimeRange,
+    onTimeRangeSelected: (TimeRange) -> Unit
+) {
+    val options = listOf(TimeRange.DAY, TimeRange.WEEK, TimeRange.MONTH, TimeRange.ALL)
+    val optionsText = mapOf(
+        TimeRange.DAY to "Hoy",
+        TimeRange.WEEK to "Semana",
+        TimeRange.MONTH to "Mes",
+        TimeRange.ALL to "Siempre"
+    )
+
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, timeRange ->
+            SegmentedButton(
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                onClick = { onTimeRangeSelected(timeRange) },
+                selected = (timeRange == selectedTimeRange)
+            ) {
+                Text(optionsText[timeRange] ?: "")
             }
         }
     }

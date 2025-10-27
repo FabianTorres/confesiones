@@ -10,7 +10,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import com.nexttry.confesiones.data.Community
+import com.nexttry.confesiones.ui.feed.TimeRange
+import java.util.Calendar
+import java.util.Date
+
 
 class ConfesionRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -23,33 +26,47 @@ class ConfesionRepository {
     }
 
     // Devuelve un Flow que emite la lista de confesiones cada vez que hay un cambio
-    fun getConfesionesStream(communityId: String, sortOrder: SortOrder): Flow<List<Confesion>> = callbackFlow {
+    fun getConfesionesStream(
+        communityId: String,
+        sortOrder: SortOrder,
+        timeRange: TimeRange
 
-        // 1. Creamos la consulta base (solo el filtro)
-        val baseQuery = db.collection("confesiones")
+    ): Flow<List<Confesion>> = callbackFlow {
+
+
+        var query: Query = db.collection("confesiones")
             .whereEqualTo("communityId", communityId)
 
+        // Aplicar filtro de tiempo SI ES NECESARIO (solo para Populares y no ALL)
+        if (sortOrder == SortOrder.POPULAR && timeRange != TimeRange.ALL) {
+            val startTime = calculateStartTime(timeRange)
+            if (startTime != null) {
+                // Añadimos el filtro por fecha ANTES del orderBy
+                query = query.whereGreaterThanOrEqualTo("timestamp", startTime)
+            }
+        }
+
         // 2. Añadimos el ordenamiento dinámicamente
-        val finalQuery: Query = when (sortOrder) {
+        query = when (sortOrder) {
             SortOrder.RECENT -> {
                 // Orden por defecto: más reciente primero
-                baseQuery.orderBy("timestamp", Query.Direction.DESCENDING)
+                query.orderBy("timestamp", Query.Direction.DESCENDING)
             }
             SortOrder.POPULAR -> {
                 // Nuevo orden: más populares (más likes) primero
                 // Añadimos 'timestamp' como segundo orden para desempates
-                baseQuery
+                query
                     .orderBy("likesCount", Query.Direction.DESCENDING)
                     .orderBy("timestamp", Query.Direction.DESCENDING)
             }
             SortOrder.OLDEST -> {
                 // Ordenar por timestamp Ascendente (más viejos primero)
-                baseQuery.orderBy("timestamp", Query.Direction.ASCENDING)
+                query.orderBy("timestamp", Query.Direction.ASCENDING)
             }
         }
 
         // 3. El listener usa la consulta final
-        val listener = finalQuery
+        val listener = query
             .limit(50)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -258,6 +275,29 @@ class ConfesionRepository {
         } catch (e: Exception) {
             Log.e("ConfesionRepo", "Error al obtener comunidad por ID: $communityId", e)
             null // Devuelve null si hay un error
+        }
+    }
+
+
+    /**
+     * Calcula el Timestamp de inicio basado en el TimeRange seleccionado.
+     */
+    private fun calculateStartTime(timeRange: TimeRange): Timestamp? {
+        val calendar = Calendar.getInstance()
+        return when (timeRange) {
+            TimeRange.DAY -> {
+                calendar.add(Calendar.DAY_OF_YEAR, -1)
+                Timestamp(calendar.time)
+            }
+            TimeRange.WEEK -> {
+                calendar.add(Calendar.WEEK_OF_YEAR, -1)
+                Timestamp(calendar.time)
+            }
+            TimeRange.MONTH -> {
+                calendar.add(Calendar.MONTH, -1)
+                Timestamp(calendar.time)
+            }
+            TimeRange.ALL -> null // No necesita filtro de tiempo
         }
     }
 }

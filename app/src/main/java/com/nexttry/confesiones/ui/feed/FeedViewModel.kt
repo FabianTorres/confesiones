@@ -17,7 +17,8 @@ import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.Job
+import java.util.Calendar
+
 
 /**
  * Define los criterios de ordenamiento disponibles para el feed.
@@ -29,6 +30,13 @@ enum class SortOrder {
     OLDEST
 }
 
+/**
+ * Define los rangos de tiempo para el filtro de popularidad.
+ */
+enum class TimeRange {
+    DAY, WEEK, MONTH, ALL
+}
+
 // Define los diferentes estados que puede tener nuestra UI
 data class FeedUiState(
     val confesiones: List<Confesion> = emptyList(),
@@ -36,7 +44,8 @@ data class FeedUiState(
     val error: String? = null,
     val currentUserId: String? = null,
     val sortOrder: SortOrder = SortOrder.RECENT,
-    val communityName: String = "Cargando..."
+    val communityName: String = "Cargando...",
+    val selectedTimeRange: TimeRange = TimeRange.ALL
 )
 
 
@@ -95,7 +104,11 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                 _uiState
                     .flatMapLatest { state ->
                         // El stream ahora depende del 'state.sortOrder'
-                        repository.getConfesionesStream(communityId, state.sortOrder)
+                        repository.getConfesionesStream(
+                            communityId = communityId,
+                            sortOrder = state.sortOrder,
+                            timeRange = state.selectedTimeRange // Pasamos el rango seleccionado
+                        )
                     }
                     .catch { e ->
                         // Si el nuevo stream falla (ej: por índice de Firestore faltante),
@@ -237,17 +250,33 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
      * Se llama cuando el usuario cambia el criterio de ordenamiento en la UI.
      */
     fun onSortOrderChanged(newSortOrder: SortOrder) {
+        val currentState = _uiState.value
         // Evitamos recargar si el orden ya es el seleccionado
-        if (newSortOrder == _uiState.value.sortOrder) return
+        if (newSortOrder == currentState.sortOrder) return
 
         // Actualizamos el estado.
-        // Ponemos isLoading = true para mostrar un indicador
-        // mientras 'flatMapLatest' recarga el stream.
         _uiState.update {
             it.copy(
                 sortOrder = newSortOrder,
+                // Si el nuevo orden NO es Popular, volvemos a 'ALL' por defecto.
+                selectedTimeRange = if (newSortOrder != SortOrder.POPULAR) TimeRange.ALL else currentState.selectedTimeRange,
                 isLoading = true
             )
+        }
+    }
+
+    /**
+     * Se llama cuando el usuario cambia el rango de tiempo (solo aplica a Populares).
+     */
+    fun onTimeRangeChanged(newTimeRange: TimeRange) {
+        // Solo cambiamos si el orden actual es Popular y el rango es diferente
+        if (_uiState.value.sortOrder == SortOrder.POPULAR && newTimeRange != _uiState.value.selectedTimeRange) {
+            _uiState.update {
+                it.copy(
+                    selectedTimeRange = newTimeRange,
+                    isLoading = true // Recargamos los datos con el nuevo rango
+                )
+            }
         }
     }
 
