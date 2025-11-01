@@ -40,11 +40,27 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import com.nexttry.confesiones.ui.newconfession.NewConfessionScreen
 import com.nexttry.confesiones.ui.newcomment.NewCommentScreen
+import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Inicializar Firebase (necesario para App Check)
+        FirebaseApp.initializeApp(this)
+
+        // Obtener la instancia de FirebaseAppCheck
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+
+        // Instalar el proveedor de Play Integrity
+        firebaseAppCheck.installAppCheckProviderFactory(
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        )
         val prefsRepository = UserPreferencesRepository(this)
         setContent {
             ConfesionesTheme {
@@ -209,7 +225,7 @@ fun AppSplashScreen(modifier: Modifier = Modifier) {
             Icon(
                 // Usamos un ícono de Material que sugiere "preguntas y respuestas" o "chat"
                 imageVector = Icons.Filled.QuestionAnswer,
-                contentDescription = "Logo de Confesiones",
+                contentDescription = stringResource(id = R.string.accessibility_app_logo),
                 modifier = Modifier.size(120.dp),
                 // Usamos el color primario del tema para el ícono
                 tint = MaterialTheme.colorScheme.primary

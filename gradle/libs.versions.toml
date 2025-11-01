@@ -39,6 +39,8 @@ play-services-tasks = { group = "org.jetbrains.kotlinx", name = "kotlinx-corouti
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+firebase-appcheck-provider = { group = "com.google.firebase", name = "firebase-appcheck-playintegrity" }
+firebase-appcheck-base = { group = "com.google.firebase", name = "firebase-appcheck-ktx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

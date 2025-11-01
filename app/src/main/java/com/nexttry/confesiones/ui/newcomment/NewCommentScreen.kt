@@ -13,6 +13,8 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +40,8 @@ fun NewCommentScreen(
                 title = { Text("Nuevo Comentario") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.accessibility_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -54,7 +57,8 @@ fun NewCommentScreen(
                         if (uiState.isPublishing) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = "Comentar")
+                            Icon(Icons.Default.Send,
+                                contentDescription = stringResource(id = R.string.accessibility_comment))
                         }
                     }
                 }

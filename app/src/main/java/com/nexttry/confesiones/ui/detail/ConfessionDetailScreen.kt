@@ -35,7 +35,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Forum
 import com.nexttry.confesiones.ui.components.EmptyState
@@ -46,6 +45,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +97,8 @@ fun ConfessionDetailScreen(
                 title = { Text("Confesión") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.accessibility_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -109,7 +112,8 @@ fun ConfessionDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(onClick = { showBottomSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Añadir")
+                Icon(Icons.Filled.Add,
+                    contentDescription = stringResource(id = R.string.accessibility_add_comment))
             }
         }
     ) { padding ->
@@ -291,7 +295,10 @@ fun ConfessionDetailCard(
                     IconButton(onClick = onLikeClicked, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Like",
+                            contentDescription = stringResource(
+                                if (isLiked) R.string.accessibility_unlike
+                                else R.string.accessibility_like
+                            ),
                             tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             modifier = Modifier.graphicsLayer(
                                 scaleX = scale,
@@ -322,7 +329,7 @@ fun ConfessionDetailCard(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Flag,
-                            contentDescription = "Reportar Confesión",
+                            contentDescription = stringResource(id = R.string.accessibility_report_confession),
                             tint = if (reportClicked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                     }
@@ -376,7 +383,7 @@ fun CommentCard(comment: Comment, onReportClicked: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Flag,
-                    contentDescription = "Reportar Comentario",
+                    contentDescription = stringResource(id = R.string.accessibility_report_comment),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
             }

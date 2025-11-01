@@ -13,6 +13,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +41,8 @@ fun NewConfessionScreen(
                 title = { Text("Nueva Confesión") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.accessibility_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -60,7 +63,8 @@ fun NewConfessionScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = "Publicar")
+                            Icon(Icons.Default.Send,
+                                contentDescription = stringResource(id = R.string.accessibility_send))
                         }
                     }
                 }

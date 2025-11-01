@@ -1,3 +1,23 @@
 <resources>
     <string name="app_name">Confesiones</string>
+
+    <string name="accessibility_back">Volver</string>
+    <string name="accessibility_add">Añadir</string>
+    <string name="accessibility_send">Publicar</string>
+    <string name="accessibility_comment">Comentar</string>
+    <string name="accessibility_app_logo">Logo de Confesiones</string>
+
+    <string name="accessibility_filter_sort">Filtrar y Ordenar</string>
+    <string name="accessibility_my_posts">Mis Publicaciones</string>
+    <string name="accessibility_change_community">Cambiar de Comunidad</string>
+    <string name="accessibility_add_confession">Nueva confesión</string>
+
+    <string name="accessibility_like">Dar like</string>
+    <string name="accessibility_unlike">Quitar like</string>
+    <string name="accessibility_comments_count">Comentarios</string>
+    <string name="accessibility_report_confession">Reportar Confesión</string>
+
+    <string name="accessibility_add_comment">Añadir comentario</string>
+    <string name="accessibility_report_comment">Reportar Comentario</string>
+
 </resources>

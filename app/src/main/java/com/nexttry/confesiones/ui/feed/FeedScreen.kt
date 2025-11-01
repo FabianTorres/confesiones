@@ -8,7 +8,6 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
-import com.nexttry.confesiones.ui.feed.TimeRange
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.foundation.clickable
@@ -69,6 +68,8 @@ import androidx.compose.material3.RadioButton // Para seleccionar el orden
 import androidx.compose.foundation.selection.selectableGroup // Para agrupar RadioButtons
 import androidx.compose.foundation.selection.selectable // Para hacer clickables los ListItems
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
 
 private const val TAG = "FeedScreen"
 @OptIn(ExperimentalMaterial3Api::class)
@@ -188,7 +189,7 @@ fun FeedScreen(navController: NavHostController,
                     IconButton(onClick = { showFilterSheet = true }) {
                         Icon(
                             imageVector = Icons.Outlined.FilterList,
-                            contentDescription = "Filtrar y Ordenar"
+                            contentDescription = stringResource(id = R.string.accessibility_filter_sort)
                         )
                     }
 
@@ -197,7 +198,7 @@ fun FeedScreen(navController: NavHostController,
                     IconButton(onClick = onNavigateToMyPosts) {
                         Icon(
                             imageVector = Icons.Outlined.AccountCircle,
-                            contentDescription = "Mis Publicaciones"
+                            contentDescription = stringResource(id = R.string.accessibility_my_posts)
                         )
                     }
                     // Botón para cambiar de comunidad
@@ -205,7 +206,7 @@ fun FeedScreen(navController: NavHostController,
                         Icon(
 
                             imageVector = Icons.Outlined.SwapHoriz,
-                            contentDescription = "Cambiar de Comunidad"
+                            contentDescription = stringResource(id = R.string.accessibility_change_community)
                         )
                     }
                 }
@@ -216,7 +217,7 @@ fun FeedScreen(navController: NavHostController,
         // Se añade el FLOATING ACTION BUTTON
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddActionSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Añadir")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.accessibility_add_confession))
             }
         }
     ) { paddingValues ->
@@ -286,7 +287,7 @@ fun FeedScreen(navController: NavHostController,
                     leadingContent = {
                         Icon(
                             Icons.Filled.Edit,
-                            contentDescription = "Nueva confesión"
+                            contentDescription = null
                         )
                     },
                     modifier = Modifier.clickable {
@@ -477,7 +478,10 @@ fun TarjetaConfesion(
                         IconButton(onClick = onLikeClicked, modifier = Modifier.size(24.dp)) {
                             Icon(
                                 imageVector = if (isLikedByCurrentUser) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Like",
+                                contentDescription = stringResource(
+                                    if (isLikedByCurrentUser) R.string.accessibility_unlike
+                                    else R.string.accessibility_like
+                                ),
                                 tint = if (isLikedByCurrentUser) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 modifier = Modifier.graphicsLayer(
                                     scaleX = scale,
@@ -501,7 +505,7 @@ fun TarjetaConfesion(
                     ) {
                         Icon( // Ícono de comentario
                             imageVector = Icons.Default.ChatBubbleOutline,
-                            contentDescription = "Comentarios",
+                            contentDescription = stringResource(id = R.string.accessibility_comments_count),
                             modifier = Modifier.size(20.dp), // Tamaño similar al corazón
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -528,7 +532,7 @@ fun TarjetaConfesion(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Flag,
-                            contentDescription = "Reportar",
+                            contentDescription = stringResource(id = R.string.accessibility_report_confession),
                             // Cambia el color a rojo si se acaba de hacer clic, si no, grisáceo
                             tint = if (reportClicked) Color.Red else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )

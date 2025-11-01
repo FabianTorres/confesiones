@@ -17,6 +17,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nexttry.confesiones.ui.feed.TarjetaConfesion
 import androidx.compose.material.icons.outlined.EditOff
 import com.nexttry.confesiones.ui.components.EmptyState
+import androidx.compose.ui.res.stringResource
+import com.nexttry.confesiones.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +37,8 @@ fun MyPostsScreen(
                 title = { Text("Mis Publicaciones") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(id = R.string.accessibility_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
