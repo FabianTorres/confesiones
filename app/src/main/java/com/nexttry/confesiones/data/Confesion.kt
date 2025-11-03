@@ -11,5 +11,8 @@ data class Confesion(
     val likesCount: Long = 0,
     val communityId: String = "",
     val likes: Map<String, Boolean> = emptyMap(),
-    val commentsCount: Long = 0
+    val commentsCount: Long = 0,
+    val authorGender: String? = null,
+    val authorAge: Int? = null,
+    val authorCountry: String? = null
 )

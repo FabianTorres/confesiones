@@ -45,6 +45,9 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import androidx.compose.ui.res.stringResource
 import com.nexttry.confesiones.R
+import com.nexttry.confesiones.ui.profile.ProfileScreen
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.nexttry.confesiones.BuildConfig
 
 
 class MainActivity : ComponentActivity() {
@@ -57,10 +60,22 @@ class MainActivity : ComponentActivity() {
         // Obtener la instancia de FirebaseAppCheck
         val firebaseAppCheck = FirebaseAppCheck.getInstance()
 
-        // Instalar el proveedor de Play Integrity
-        firebaseAppCheck.installAppCheckProviderFactory(
-            PlayIntegrityAppCheckProviderFactory.getInstance()
-        )
+        // Instalar el proveedor de Play Integrity en modo debug o produccion
+        if (BuildConfig.DEBUG) {
+            // Estamos en un build de depuración (Emulador o Teléfono de desarrollo)
+            Log.d("AppCheck", "Instalando AppCheck Debug Provider")
+            firebaseAppCheck.installAppCheckProviderFactory(
+                DebugAppCheckProviderFactory.getInstance()
+            )
+        } else {
+            // Estamos en un build de Producción (Release para la Play Store)
+            Log.d("AppCheck", "Instalando AppCheck Play Integrity Provider")
+            firebaseAppCheck.installAppCheckProviderFactory(
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            )
+        }
+
+
         val prefsRepository = UserPreferencesRepository(this)
         setContent {
             ConfesionesTheme {
@@ -129,10 +144,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                         }
                     },
                     onNavigateToConfession = { confessionId ->
-                        navController.navigate("confession/$confessionId") // Navega a la nueva ruta
-                    },
-                    onNavigateToMyPosts = {
-                        navController.navigate("my_posts") // Navega a la nueva ruta
+                        navController.navigate("confession/$confessionId")
                     }
 
                 )
@@ -199,6 +211,13 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
                 )
             }
             // Podrías añadir un else aquí para manejar el caso de confessionId nulo
+        }
+
+        //RUTA 7: Perfil de Usuario
+        composable(route = "profile") {
+            ProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

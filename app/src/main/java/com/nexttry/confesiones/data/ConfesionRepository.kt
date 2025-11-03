@@ -80,12 +80,19 @@ class ConfesionRepository {
     }
 
     // Función suspendida para añadir una nueva confesión
-    suspend fun addConfesion(texto: String, communityId: String) {
+    suspend fun addConfesion(texto: String,
+                             communityId: String,
+                             authorGender: String?,
+                             authorAge: Int?,
+                             authorCountry: String?) {
         val userId = auth.currentUser?.uid ?: throw Exception("Usuario no autenticado")
         val nuevaConfesion = Confesion(
             texto = texto,
             userId = userId,
-            communityId = communityId
+            communityId = communityId,
+            authorGender = authorGender,
+            authorAge = authorAge,
+            authorCountry = authorCountry
         )
         db.collection("confesiones").add(nuevaConfesion).await()
     }
@@ -299,5 +306,33 @@ class ConfesionRepository {
             }
             TimeRange.ALL -> null // No necesita filtro de tiempo
         }
+    }
+
+    /**
+     * Obtiene los datos del perfil de un usuario como un Flow.
+     * Emite null si el perfil no existe.
+     * @param userId El UID del usuario.
+     */
+    fun getUserProfileStream(userId: String): Flow<UserProfile?> = callbackFlow {
+        val docRef = db.collection("userProfiles").document(userId)
+
+        val listener = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error); return@addSnapshotListener
+            }
+            // Emite el perfil, o null si no existe
+            trySend(snapshot?.toObject(UserProfile::class.java))
+        }
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Crea o sobrescribe el perfil de un usuario.
+     * @param userId El UID del usuario.
+     * @param profile El objeto UserProfile a guardar.
+     */
+    suspend fun updateUserProfile(userId: String, profile: UserProfile) {
+        // Usamos .set() en lugar de .update() para que cree el documento si no existe.
+        db.collection("userProfiles").document(userId).set(profile).await()
     }
 }

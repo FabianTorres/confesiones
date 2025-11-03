@@ -4,8 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexttry.confesiones.data.ConfesionRepository
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -22,7 +25,7 @@ class NewConfessionViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
     private val repository = ConfesionRepository()
     // Obtenemos el communityId pasado a través de la ruta de navegación
     private val communityId: String = savedStateHandle.get<String>("communityId")!!
-
+    private val userId = Firebase.auth.currentUser?.uid
     private val _uiState = MutableStateFlow(NewConfessionUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -43,16 +46,29 @@ class NewConfessionViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
      */
     fun publishConfession() {
         val currentText = _uiState.value.text.trim()
-        if (currentText.isBlank() || _uiState.value.isPublishing) {
-            return // Evita publicar vacío o múltiples veces
+        if (currentText.isBlank() || _uiState.value.isPublishing || userId == null) {
+            return
         }
 
-        _uiState.update { it.copy(isPublishing = true, error = null) } // Marca como publicando
+        _uiState.update { it.copy(isPublishing = true, error = null) }
 
         viewModelScope.launch {
             try {
-                repository.addConfesion(currentText, communityId)
-                _uiState.update { it.copy(isPublishing = false, publishSuccess = true) } // Marca éxito
+                // 1. Obtenemos el perfil del usuario UNA VEZ
+                val userProfile = repository.getUserProfileStream(userId!!).firstOrNull()
+
+                // 2. Pasamos los 3 datos al repositorio
+                repository.addConfesion(
+                    texto = currentText,
+                    communityId = communityId,
+                    // --- MODIFICACIÓN AQUÍ ---
+                    authorGender = userProfile?.gender,
+                    authorAge = userProfile?.age,
+                    authorCountry = userProfile?.countryCode
+                    // --- FIN DE LA MODIFICACIÓN ---
+                )
+
+                _uiState.update { it.copy(isPublishing = false, publishSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isPublishing = false, error = "Error al publicar: ${e.message}") }
             }

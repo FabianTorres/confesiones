@@ -30,6 +30,7 @@ import com.nexttry.confesiones.data.Comment
 import com.nexttry.confesiones.data.Confesion
 import com.nexttry.confesiones.ui.components.ReportDialog
 import com.nexttry.confesiones.ui.feed.formatRelativeTime
+import com.nexttry.confesiones.ui.feed.AuthorInfoRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
@@ -319,6 +320,7 @@ fun ConfessionDetailCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    AuthorInfoRow(confesion = confesion)
                     // Botón de Reportar
                     IconButton(
                         onClick = {

@@ -2,9 +2,18 @@ package com.nexttry.confesiones.ui.feed
 
 import android.app.Application
 import android.util.Log
+import com.nexttry.confesiones.ui.feed.AuthorInfoRow
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.material.icons.filled.Menu //
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.rememberDrawerState
+import kotlinx.coroutines.launch
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
@@ -74,11 +83,13 @@ import com.nexttry.confesiones.R
 private const val TAG = "FeedScreen"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedScreen(navController: NavHostController,
-               communityId: String,
-               onChangeCommunity: () -> Unit,
-               onNavigateToConfession: (String) -> Unit,
-               onNavigateToMyPosts: () -> Unit) {
+fun FeedScreen(
+    navController: NavHostController,
+    communityId: String,
+    onChangeCommunity: () -> Unit,
+    onNavigateToConfession: (String) -> Unit
+    // Nota: onNavigateToProfile y onNavigateToMyPosts se eliminan de aquí
+) {
     Log.d(TAG, "FeedScreen se está componiendo. CommunityId: $communityId")
     //  Obtenemos el contexto y la aplicación
     val context = LocalContext.current
@@ -90,7 +101,6 @@ fun FeedScreen(navController: NavHostController,
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 Log.d(TAG, "Factory: Creando SavedStateHandle...")
-                // Usamos la 'application' que obtuvimos fuera de la fábrica.
                 val savedStateHandle = SavedStateHandle(mapOf("communityId" to communityId))
                 Log.d(TAG, "Factory: Creando instancia de FeedViewModel...")
                 return FeedViewModel(application, savedStateHandle) as T
@@ -100,203 +110,205 @@ fun FeedScreen(navController: NavHostController,
 
     val uiState by vm.uiState.collectAsStateWithLifecycle()
 
-    // Estado para manejar los Snackbars ---
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    // --- ESTADO PARA EL MENÚ LATERAL (DRAWER) ---
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope() // Usaremos este para abrir/cerrar el drawer
 
+    // --- Estados para Snackbars y Dialogs (sin cambios) ---
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var itemToReport by remember { mutableStateOf<String?>(null) }
+    val lazyListState = rememberLazyListState()
+
+    // --- Estados para Bottom Sheets (sin cambios) ---
+    val sheetState = rememberModalBottomSheetState()
+    var showAddActionSheet by remember { mutableStateOf(false) }
+    val filterSheetState = rememberModalBottomSheetState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    // --- Configuración de UI (sin cambios) ---
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
+
+    // --- LaunchedEffects (sin cambios) ---
     LaunchedEffect(Unit) {
         vm.events.collect { event ->
             when (event) {
                 is FeedScreenEvent.ShowSnackbar -> {
-                    // Lanzamos una coroutine para mostrar el Snackbar
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             message = event.message,
-                            duration = SnackbarDuration.Short // Duración corta
+                            duration = SnackbarDuration.Short
                         )
                     }
                 }
-                // Manejar otros eventos si los hubiera
             }
         }
     }
 
-
-    var showReportDialog by remember { mutableStateOf(false) }
-    var itemToReport by remember { mutableStateOf<String?>(null) }
-
-    // Crear y recordar el estado del LazyColumn
-    val lazyListState = rememberLazyListState()
-    // Bandera para evitar el scroll en la carga inicial
-    //var isInitialLoad by remember { mutableStateOf(true) }
-
-    val sheetState = rememberModalBottomSheetState()
-    var showBottomSheet by remember { mutableStateOf(false) }
-
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-
-    // --- ESTADO PARA BOTTOM SHEET DE ACCIONES (el del FAB) ---
-    //val addActionSheetState = rememberModalBottomSheetState()
-    var showAddActionSheet by remember { mutableStateOf(false) }
-
-    // --- ESTADO PARA BOTTOM SHEET DE FILTROS ---
-    val filterSheetState = rememberModalBottomSheetState()
-    var showFilterSheet by remember { mutableStateOf(false) }
-
-    // Calcular color con elevación
-    val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-
-    // --- PASO 2: Restaurar el LaunchedEffect, pero usando scrollToItem ---
     LaunchedEffect(uiState.sortOrder) {
-        // Espera hasta que isLoading se vuelva 'false'
         snapshotFlow { uiState.isLoading }
             .filter { !it }
-            .first() // Suspende hasta que isLoading sea false
-
-        // Una vez que isLoading es false...
+            .first()
         if (uiState.confesiones.isNotEmpty()) {
-            // Usamos scrollToItem (SIN animación) para un reseteo instantáneo
             lazyListState.scrollToItem(index = 0)
             Log.d(TAG, "Scroll INSTANTÁNEO al inicio ejecutado tras cambio de orden.")
         }
     }
 
-
-
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                            Text(
-                                text = uiState.communityName,
-                                // Limita el texto a una sola línea
-                                maxLines = 1,
-                                // Añade puntos suspensivos si el texto no cabe
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = appBarContainerColor,
-                    scrolledContainerColor = appBarContainerColor,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                scrollBehavior = scrollBehavior,
-                actions = {
-                    // icono de filtro
-                    IconButton(onClick = { showFilterSheet = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.FilterList,
-                            contentDescription = stringResource(id = R.string.accessibility_filter_sort)
-                        )
+    // --- INICIO DE LA NUEVA ESTRUCTURA: ModalNavigationDrawer ---
+    // Envolvemos el Scaffold en el Drawer.
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            // Este es el contenido del menú que se desliza
+            ModalDrawerSheet {
+                Spacer(Modifier.height(12.dp))
+                // Opción 1: Mi Perfil
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Mi Perfil") },
+                    label = { Text("Mi Perfil") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("profile") // Navega a la pantalla de perfil
                     }
-
-
-                    //  Se añadió el botón para "Mis Publicaciones" ---
-                    IconButton(onClick = onNavigateToMyPosts) {
-                        Icon(
-                            imageVector = Icons.Outlined.AccountCircle,
-                            contentDescription = stringResource(id = R.string.accessibility_my_posts)
-                        )
+                )
+                // Opción 2: Mis Publicaciones
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.EditNote, contentDescription = stringResource(id = R.string.accessibility_my_posts)) },
+                    label = { Text("Mis Publicaciones") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("my_posts") // Navega a mis posts
                     }
-                    // Botón para cambiar de comunidad
-                    IconButton(onClick = onChangeCommunity) {
-                        Icon(
-
-                            imageVector = Icons.Outlined.SwapHoriz,
-                            contentDescription = stringResource(id = R.string.accessibility_change_community)
-                        )
+                )
+                // Opción 3: Cambiar Comunidad
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = stringResource(id = R.string.accessibility_change_community)) },
+                    label = { Text("Cambiar Comunidad") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onChangeCommunity() // Llama a la acción de cambiar comunidad
                     }
-                }
-
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        // Se añade el FLOATING ACTION BUTTON
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddActionSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.accessibility_add_confession))
+                )
+                // Aquí puedes añadir más opciones en el futuro
             }
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            // Le damos un padding vertical para separarlo
-//            SortOrderSelector(
-//                modifier = Modifier.padding(vertical = 8.dp),
-//                currentSortOrder = uiState.sortOrder,
-//                onSortChanged = { vm.onSortOrderChanged(it) }
-//            )
-            // GESTIONAMOS EL ESTADO DE CARGA Y LA LISTA
-            // Mantenemos el Box con CircularProgressIndicator para el estado de carga
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+    ) {
+        // --- TU SCAFFOLD AHORA VA AQUÍ DENTRO ---
+        Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = uiState.communityName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = appBarContainerColor,
+                        scrolledContainerColor = appBarContainerColor,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    scrollBehavior = scrollBehavior,
+                    // --- CAMBIO: ICONO DE NAVEGACIÓN (HAMBURGUESA) ---
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            scope.launch { drawerState.open() } // Abre el menú lateral
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Abrir menú de navegación" // Deberíamos añadir esto a strings.xml
+                            )
+                        }
+                    },
+                    // --- CAMBIO: ACCIONES (LIMPIEZA) ---
+                    actions = {
+                        // Solo dejamos el icono de filtro
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.FilterList,
+                                contentDescription = stringResource(id = R.string.accessibility_filter_sort)
+                            )
+                        }
+                        // Los otros iconos se movieron al menú lateral
+                    }
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+            floatingActionButton = {
+                FloatingActionButton(onClick = { showAddActionSheet = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.accessibility_add_confession))
                 }
             }
-
-            // Usamos AnimatedVisibility para la lista cuando NO está cargando
-            AnimatedVisibility(
-                visible = !uiState.isLoading, // Visible cuando isLoading es false
-                modifier = Modifier.weight(1f),
-                enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)), // Duración del fade-in
-                exit = fadeOut() // Puedes añadir un fade-out si quieres, aunque no es estrictamente necesario aquí
+        ) { paddingValues ->
+            // --- EL RESTO DE TU PANTALLA NO CAMBIA ---
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
             ) {
-
-                Column(modifier = Modifier.weight(1f)) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(), // Ocupa el espacio de la Column padre
-                        state = lazyListState,
-                        contentPadding = PaddingValues(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.confesiones, key = { it.id }) { confesion ->
-                            TarjetaConfesion(
-                                confesion = confesion,
-                                isLikedByCurrentUser = uiState.currentUserId in confesion.likes,
-                                onLikeClicked = { vm.onLikeClicked(confesion.id) },
-                                onCardClicked = { onNavigateToConfession(confesion.id) },
-                                onReportClicked = { itemToReport = confesion.id
-                                    showReportDialog = true }
-                            )
+                if (uiState.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                AnimatedVisibility(
+                    visible = !uiState.isLoading,
+                    modifier = Modifier.weight(1f),
+                    enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)),
+                    exit = fadeOut()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = lazyListState,
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.confesiones, key = { it.id }) { confesion ->
+                                TarjetaConfesion(
+                                    confesion = confesion,
+                                    isLikedByCurrentUser = uiState.currentUserId in confesion.likes,
+                                    onLikeClicked = { vm.onLikeClicked(confesion.id) },
+                                    onCardClicked = { onNavigateToConfession(confesion.id) },
+                                    onReportClicked = {
+                                        itemToReport = confesion.id
+                                        showReportDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-    }
+        } // Fin del Scaffold
+    } // --- FIN DEL ModalNavigationDrawer ---
 
-    // BOTTOM SHEET DE ACCIONES
+    // --- TODOS LOS BOTTOM SHEETS Y DIALOGS SIGUEN IGUAL ---
     if (showAddActionSheet) {
         ModalBottomSheet(
             onDismissRequest = { showAddActionSheet = false },
             sheetState = sheetState,
             contentWindowInsets = { WindowInsets(0.dp) }
         ) {
-            // Contenido de la hoja
-            Column(modifier = Modifier.padding(bottom = 32.dp)) { // Espacio extra abajo
-                // Opción 1: Nueva Confesión
+            Column(modifier = Modifier.padding(bottom = 32.dp)) {
                 ListItem(
                     headlineContent = { Text("Nueva confesión") },
-                    leadingContent = {
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = null
-                        )
-                    },
+                    leadingContent = { Icon(Icons.Filled.Edit, contentDescription = null) },
                     modifier = Modifier.clickable {
-                        showAddActionSheet = false // Cierra la hoja
-                        // Navegamos a la nueva ruta pasando el communityId
+                        showAddActionSheet = false
                         navController.navigate("new_confession/$communityId")
                     }
                 )
-                // Aquí podrías añadir más ListItems para futuras opciones
             }
         }
     }
@@ -308,35 +320,28 @@ fun FeedScreen(navController: NavHostController,
             contentWindowInsets = { WindowInsets(0.dp) }
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
-                // Título de la sección
                 Text(
                     "Ordenar por",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
-
-                // Grupo de RadioButtons para asegurar selección única
                 Column(Modifier.selectableGroup()) {
-                    // Opción: Recientes
                     ListItem(
                         headlineContent = { Text("Más Recientes") },
                         leadingContent = {
                             RadioButton(
                                 selected = (uiState.sortOrder == SortOrder.RECENT),
-                                onClick = null // El clic se maneja en el Modifier del ListItem
+                                onClick = null
                             )
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (uiState.sortOrder == SortOrder.RECENT),
-                                onClick = {
-                                    vm.onSortOrderChanged(SortOrder.RECENT)
-                                    showFilterSheet = false // Cierra el sheet al seleccionar
-                                }
-                            )
+                        modifier = Modifier.fillMaxWidth().selectable(
+                            selected = (uiState.sortOrder == SortOrder.RECENT),
+                            onClick = {
+                                vm.onSortOrderChanged(SortOrder.RECENT)
+                                showFilterSheet = false
+                            }
+                        )
                     )
-                    // Opción: Populares
                     ListItem(
                         headlineContent = { Text("Más Populares") },
                         leadingContent = {
@@ -345,14 +350,11 @@ fun FeedScreen(navController: NavHostController,
                                 onClick = null
                             )
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (uiState.sortOrder == SortOrder.POPULAR),
-                                onClick = { vm.onSortOrderChanged(SortOrder.POPULAR) } // Solo cambia el estado
-                            )
+                        modifier = Modifier.fillMaxWidth().selectable(
+                            selected = (uiState.sortOrder == SortOrder.POPULAR),
+                            onClick = { vm.onSortOrderChanged(SortOrder.POPULAR) }
+                        )
                     )
-                    // Opción: Antiguos
                     ListItem(
                         headlineContent = { Text("Más Antiguos") },
                         leadingContent = {
@@ -361,40 +363,33 @@ fun FeedScreen(navController: NavHostController,
                                 onClick = null
                             )
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (uiState.sortOrder == SortOrder.OLDEST),
-                                onClick = {
-                                    vm.onSortOrderChanged(SortOrder.OLDEST)
-                                    showFilterSheet = false
-                                }
-                            )
+                        modifier = Modifier.fillMaxWidth().selectable(
+                            selected = (uiState.sortOrder == SortOrder.OLDEST),
+                            onClick = {
+                                vm.onSortOrderChanged(SortOrder.OLDEST)
+                                showFilterSheet = false
+                            }
+                        )
                     )
                 }
-
-                // --- AÑADIR SECCIÓN RANGO DE TIEMPO (Solo si Populares está activo) ---
                 AnimatedVisibility(visible = uiState.sortOrder == SortOrder.POPULAR) {
                     Column {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) // Separador visual
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         Text(
                             "Popularidad en",
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
-                        // Botones segmentados para el rango de tiempo
                         TimeRangeSelector(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             selectedTimeRange = uiState.selectedTimeRange,
                             onTimeRangeSelected = { timeRange ->
                                 vm.onTimeRangeChanged(timeRange)
-                                // Cerramos el sheet DESPUÉS de seleccionar el rango
                                 showFilterSheet = false
                             }
                         )
                     }
                 }
-
             }
         }
     }
@@ -402,15 +397,13 @@ fun FeedScreen(navController: NavHostController,
     if (showReportDialog && itemToReport != null) {
         ReportDialog(
             onDismissRequest = {
-                showReportDialog = false // Cierra el diálogo
-                itemToReport = null    // Limpia el ID guardado
+                showReportDialog = false
+                itemToReport = null
             },
             onConfirm = { reason ->
-                // Cuando el usuario confirma, llamamos al ViewModel con el ID y el motivo
                 vm.onReportConfessionClicked(itemToReport!!, reason)
-                showReportDialog = false // Cierra el diálogo
-                itemToReport = null    // Limpia el ID guardado
-                // Aquí podrías mostrar un Snackbar de confirmación
+                showReportDialog = false
+                itemToReport = null
             }
         )
     }
@@ -522,6 +515,7 @@ fun TarjetaConfesion(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ){
+                    AuthorInfoRow(confesion = confesion)
                     // Botón de Reportar (Bandera)
                     IconButton(
                         onClick = {

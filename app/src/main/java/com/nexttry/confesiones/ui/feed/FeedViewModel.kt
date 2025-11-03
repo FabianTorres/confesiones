@@ -91,7 +91,11 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
 
                 // Cargamos el nombre de la comunidad ANTES de empezar a escuchar el feed
                 val community = repository.getCommunityById(communityId)
-                _uiState.update { it.copy(communityName = community?.nombre ?: "Comunidad Desconocida") }
+                _uiState.update {
+                    it.copy(
+                        communityName = community?.nombre ?: "Comunidad Desconocida"
+                    )
+                }
 
                 // Se asegura el login
                 repository.asegurarLoginAnonimo()
@@ -179,19 +183,6 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                         isLoading = false
                     )
                 }
-            }
-        }
-    }
-
-    fun publicarConfesion(texto: String) {
-        if (texto.isBlank()) return
-        viewModelScope.launch {
-            try {
-                repository.addConfesion(texto, communityId)
-                _eventChannel.send(FeedScreenEvent.ShowSnackbar("Confesión publicada"))
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Error al publicar: ${e.message}") }
-                _eventChannel.send(FeedScreenEvent.ShowSnackbar("Error al publicar"))
             }
         }
     }
