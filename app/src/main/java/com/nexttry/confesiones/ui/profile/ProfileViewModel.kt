@@ -60,15 +60,23 @@ class ProfileViewModel : ViewModel() {
     fun onSaveProfile(
         gender: String?,
         age: Int?,
-        countryCode: String?
+        countryCode: String?,
+        allowsMessaging: Boolean
     ) {
         if (userId == null) return
 
-        // Creamos el nuevo objeto de perfil (ahora más simple)
+        // Obtenemos el perfil actual para no perder el anonymousName
+        val currentProfile = _uiState.value.profile
+
+        // Creamos el objeto actualizado
         val updatedProfile = UserProfile(
+            // Mantenemos el nombre anónimo que ya existía
+            anonymousName = currentProfile?.anonymousName,
+            // Actualizamos los otros campos
             gender = gender,
             age = age,
-            countryCode = countryCode
+            countryCode = countryCode,
+            allowsMessaging = allowsMessaging // Guardamos la nueva preferencia
         )
 
         viewModelScope.launch {

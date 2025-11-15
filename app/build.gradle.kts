@@ -7,14 +7,12 @@ plugins {
 
 android {
     namespace = "com.nexttry.confesiones"
-    compileSdk {
-        version = release(34)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nexttry.confesiones"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -63,6 +61,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.firebase.appcheck.provider)
     implementation(libs.firebase.appcheck.base)
+    implementation(libs.androidx.ui)
     debugImplementation(libs.firebase.appcheck.debug)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

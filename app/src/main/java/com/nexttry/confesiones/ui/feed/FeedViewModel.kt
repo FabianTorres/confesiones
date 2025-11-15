@@ -52,7 +52,8 @@ data class FeedUiState(
 // Clase sellada para los eventos de una sola vez ---
 sealed class FeedScreenEvent {
     data class ShowSnackbar(val message: String) : FeedScreenEvent()
-    // Podríamos añadir más eventos aquí si fuera necesario (ej: Navigate)
+    data class NavigateToChat(val chatId: String) : FeedScreenEvent()
+
 }
 
 class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle) :
@@ -288,6 +289,37 @@ class FeedViewModel(application: Application, savedStateHandle: SavedStateHandle
                 Log.e("ViewModel-Report", "Error al reportar confesión", e)
                 _uiState.update { it.copy(error = "Error al enviar el reporte") }
                 _eventChannel.send(FeedScreenEvent.ShowSnackbar("Error al enviar reporte"))
+            }
+        }
+    }
+
+    /**
+     * Se llama cuando el usuario hace clic en "Enviar Mensaje" en una tarjeta.
+     * Busca o crea el chat y luego emite un evento para navegar a él.
+     */
+    fun onStartChat(confesion: Confesion) {
+        val currentUserId = _uiState.value.currentUserId
+        if (currentUserId == null || currentUserId == confesion.userId) {
+            Log.w("FeedViewModel", "No se puede iniciar chat con uno mismo o sin user ID.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // Llama a la nueva función del repositorio
+                val chatId = repository.findOrCreateChat(
+                    currentUserId = currentUserId,
+                    authorId = confesion.userId,
+                    confesion = confesion
+                )
+
+                // Emite un evento para que la UI navegue
+                // (Crearemos este evento ahora)
+                _eventChannel.send(FeedScreenEvent.NavigateToChat(chatId))
+
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Error al iniciar el chat", e)
+                _eventChannel.send(FeedScreenEvent.ShowSnackbar("Error al iniciar el chat"))
             }
         }
     }

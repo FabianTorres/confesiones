@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import com.nexttry.confesiones.ui.feed.TimeRange
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.Calendar
 import java.util.Date
 
@@ -84,7 +85,8 @@ class ConfesionRepository {
                              communityId: String,
                              authorGender: String?,
                              authorAge: Int?,
-                             authorCountry: String?) {
+                             authorCountry: String?,
+                             authorAllowsMessaging: Boolean) {
         val userId = auth.currentUser?.uid ?: throw Exception("Usuario no autenticado")
         val nuevaConfesion = Confesion(
             texto = texto,
@@ -92,7 +94,8 @@ class ConfesionRepository {
             communityId = communityId,
             authorGender = authorGender,
             authorAge = authorAge,
-            authorCountry = authorCountry
+            authorCountry = authorCountry,
+            authorAllowsMessaging = authorAllowsMessaging
         )
         db.collection("confesiones").add(nuevaConfesion).await()
     }
@@ -334,5 +337,187 @@ class ConfesionRepository {
     suspend fun updateUserProfile(userId: String, profile: UserProfile) {
         // Usamos .set() en lugar de .update() para que cree el documento si no existe.
         db.collection("userProfiles").document(userId).set(profile).await()
+    }
+
+
+    /**
+     * Busca un chat 1-a-1 existente entre dos usuarios.
+     * Si no existe, crea uno nuevo en estado "pending" e inyecta la confesión
+     * como el primer mensaje contextual.
+     * Si ya existe, simplemente inyecta la confesión como un nuevo mensaje contextual.
+     *
+     * @param currentUserId El UID del usuario que inicia el chat.
+     * @param authorId El UID del autor de la confesión.
+     * @param confesion La confesión que sirve de contexto.
+     * @return El ID del chat (ya sea existente o nuevo).
+     */
+    suspend fun findOrCreateChat(
+        currentUserId: String,
+        authorId: String,
+        confesion: Confesion
+    ): String {
+        // 1. Para evitar duplicados, la lista de miembros SIEMPRE se guarda ordenada alfabéticamente.
+        val sortedMembers = listOf(currentUserId, authorId).sorted()
+
+        // 2. Busca un chat que contenga exactamente a estos dos miembros
+        val chatQuery = db.collection("chatRooms")
+            .whereEqualTo("members", sortedMembers)
+            .limit(1)
+            .get()
+            .await()
+
+        val chatId: String
+
+        if (chatQuery.isEmpty) {
+            // --- 3A. NO EXISTE CHAT: Creamos uno nuevo ---
+            Log.d("ChatRepo", "No existe chat, creando uno nuevo.")
+
+            // 3.1. Obtenemos los perfiles para los nombres anónimos
+            val currentUserProfile = getUserProfileStream(currentUserId).firstOrNull()
+            val authorProfile = getUserProfileStream(authorId).firstOrNull()
+
+            val newChatRoom = ChatRoom(
+                members = sortedMembers,
+                memberNames = mapOf(
+                    currentUserId to (currentUserProfile?.anonymousName ?: "Usuario"),
+                    authorId to (authorProfile?.anonymousName ?: "Usuario")
+                ),
+                status = "pending" // El chat empieza como una solicitud
+                // ttlTimestamp se pone por defecto
+            )
+
+            // 3.2. Creamos el documento del ChatRoom
+            val chatDocRef = db.collection("chatRooms").add(newChatRoom).await()
+            chatId = chatDocRef.id
+
+        } else {
+            // --- 3B. EL CHAT YA EXISTE: Obtenemos su ID ---
+            chatId = chatQuery.documents.first().id
+            Log.d("ChatRepo", "Chat existente encontrado: $chatId")
+        }
+
+        // --- 4. AÑADIMOS EL MENSAJE DE CONTEXTO ---
+        // (Tanto si el chat es nuevo como si es existente)
+        val contextMessage = Message(
+            senderId = currentUserId, // El que inicia la acción
+            text = confesion.texto, // El texto de la confesión
+            isContext = true,
+            timestamp = Timestamp.now()
+        )
+
+        // 4.1. Añadimos el mensaje a la subcolección
+        db.collection("chatRooms").document(chatId)
+            .collection("messages")
+            .add(contextMessage)
+            .await()
+
+        // La Cloud Function que creamos en el Paso 4 (plan) se encargará
+        // de actualizar el lastMessageText, timestamp y status del ChatRoom padre.
+
+        return chatId
+    }
+
+
+    /**
+     * Obtiene un stream que emite los datos de un ChatRoom específico.
+     */
+    fun getChatRoomStream(chatId: String): Flow<ChatRoom?> = callbackFlow {
+        val docRef = db.collection("chatRooms").document(chatId)
+        val listener = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error); return@addSnapshotListener
+            }
+            trySend(snapshot?.toObject(ChatRoom::class.java))
+        }
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Obtiene un stream que emite la lista de mensajes de un chat, ordenados por fecha.
+     */
+    fun getMessagesStream(chatId: String): Flow<List<Message>> = callbackFlow {
+        val messagesRef = db.collection("chatRooms").document(chatId).collection("messages")
+        val listener = messagesRef.orderBy("timestamp", Query.Direction.ASCENDING) // Los más nuevos al final
+            .limitToLast(100) // Traemos solo los últimos 100 mensajes
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error); return@addSnapshotListener
+                }
+                val messages = snapshot?.toObjects(Message::class.java) ?: emptyList()
+                trySend(messages)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Envía un nuevo mensaje (no contextual) a un chat.
+     */
+    suspend fun sendChatMessage(chatId: String, text: String, senderId: String) {
+        val message = Message(
+            senderId = senderId,
+            text = text,
+            isContext = false,
+            timestamp = Timestamp.now()
+        )
+        db.collection("chatRooms").document(chatId)
+            .collection("messages")
+            .add(message)
+            .await()
+        // La Cloud Function que planificamos se encargará de actualizar el ChatRoom padre.
+    }
+
+    /**
+     * Actualiza el estado de un chat a "active" (aceptado).
+     */
+    suspend fun acceptChat(chatId: String) {
+        db.collection("chatRooms").document(chatId)
+            .update("status", "active")
+            .await()
+    }
+
+    /**
+     * Actualiza el estado de un chat a "rejected" (rechazado).
+     * Nota: No borramos el documento para evitar mensajes huérfanos.
+     * La lista de chats principal filtrará los "rejected".
+     */
+    suspend fun rejectChat(chatId: String) {
+        db.collection("chatRooms").document(chatId)
+            .update("status", "rejected")
+            .await()
+    }
+
+    /**
+     * Obtiene un stream de todos los ChatRooms en los que el usuario actual
+     * es miembro, ordenados por el último mensaje.
+     */
+    fun getMyChatRoomsStream(userId: String): Flow<List<ChatRoom>> = callbackFlow {
+        val query = db.collection("chatRooms")
+            // Busca todos los chats donde el array 'members' contenga nuestro ID
+            .whereArrayContains("members", userId)
+            // Ordena por el último mensaje (el más nuevo primero)
+            // La Cloud Function que planificamos es VITAL para que este campo esté actualizado.
+            .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.w("ChatRepo", "Error al escuchar mis chats", error)
+                close(error); return@addSnapshotListener
+            }
+            val chatRooms = snapshot?.toObjects(ChatRoom::class.java) ?: emptyList()
+            trySend(chatRooms)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Añade un UID a la lista de bloqueo del usuario actual.
+     */
+    suspend fun blockUser(currentUserId: String, userIdToBlock: String) {
+        val userProfileRef = db.collection("userProfiles").document(currentUserId)
+
+        // Usamos FieldValue.arrayUnion para añadir el ID a la lista
+        // de forma segura, evitando duplicados.
+        userProfileRef.update("blockedUsers", com.google.firebase.firestore.FieldValue.arrayUnion(userIdToBlock))
+            .await()
     }
 }

@@ -14,6 +14,7 @@ lifecycle = "2.8.3"
 datastore = "1.1.1"
 materialIconsExtended = "1.6.8"
 navigation = "2.7.7"
+ui = "1.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -42,6 +43,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 firebase-appcheck-provider = { group = "com.google.firebase", name = "firebase-appcheck-playintegrity" }
 firebase-appcheck-base = { group = "com.google.firebase", name = "firebase-appcheck-ktx" }
 firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

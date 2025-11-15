@@ -57,15 +57,15 @@ class NewConfessionViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
                 // 1. Obtenemos el perfil del usuario UNA VEZ
                 val userProfile = repository.getUserProfileStream(userId!!).firstOrNull()
 
-                // 2. Pasamos los 3 datos al repositorio
+                // 2. Pasamos todos los datos denormalizados al repositorio
                 repository.addConfesion(
                     texto = currentText,
                     communityId = communityId,
-                    // --- MODIFICACIÓN AQUÍ ---
                     authorGender = userProfile?.gender,
                     authorAge = userProfile?.age,
-                    authorCountry = userProfile?.countryCode
-                    // --- FIN DE LA MODIFICACIÓN ---
+                    authorCountry = userProfile?.countryCode,
+                    // Si el perfil no existe (o el campo es nulo), asumimos 'true' por defecto.
+                    authorAllowsMessaging = userProfile?.allowsMessaging ?: true
                 )
 
                 _uiState.update { it.copy(isPublishing = false, publishSuccess = true) }

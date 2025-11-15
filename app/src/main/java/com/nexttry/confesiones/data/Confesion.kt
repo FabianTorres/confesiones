@@ -14,5 +14,6 @@ data class Confesion(
     val commentsCount: Long = 0,
     val authorGender: String? = null,
     val authorAge: Int? = null,
-    val authorCountry: String? = null
+    val authorCountry: String? = null,
+    val authorAllowsMessaging: Boolean = true
 )

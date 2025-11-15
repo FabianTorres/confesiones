@@ -92,7 +92,10 @@ fun MyPostsScreen(
                                 // Al hacer clic en la tarjeta, vamos al detalle
                                 onCardClicked = { onNavigateToConfession(confesion.id) },
                                 // El reporte no hace nada aquí (o podría añadirse)
-                                onReportClicked = { /* No-op */ }
+                                onReportClicked = { /* No-op */ },
+                                onMessageClicked = { /* No-op */ }, // No hace nada
+                                showMessageButton = false // Nunca muestra el botón
+                                // --- FIN DE LA CORRECCIÓN ---
                             )
                         }
                     }

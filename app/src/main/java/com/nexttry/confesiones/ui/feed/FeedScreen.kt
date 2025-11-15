@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.nexttry.confesiones.ui.feed.AuthorInfoRow
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material.icons.filled.Menu //
@@ -142,6 +143,10 @@ fun FeedScreen(
                         )
                     }
                 }
+                is FeedScreenEvent.NavigateToChat -> {
+                    // Navega a la nueva ruta que acabamos de crear
+                    navController.navigate("conversation/${event.chatId}")
+                }
             }
         }
     }
@@ -164,6 +169,16 @@ fun FeedScreen(
             // Este es el contenido del menú que se desliza
             ModalDrawerSheet {
                 Spacer(Modifier.height(12.dp))
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Chat, contentDescription = "Mis Mensajes") }, // TODO: Mover a strings.xml
+                    label = { Text("Mis Mensajes") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("chat_list") // Navega a la lista de chats
+                    }
+                )
                 // Opción 1: Mi Perfil
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = "Mi Perfil") },
@@ -283,7 +298,10 @@ fun FeedScreen(
                                     onReportClicked = {
                                         itemToReport = confesion.id
                                         showReportDialog = true
-                                    }
+                                    },
+                                    onMessageClicked = { vm.onStartChat(confesion) },
+                                    showMessageButton = confesion.authorAllowsMessaging &&
+                                            confesion.userId != uiState.currentUserId
                                 )
                             }
                         }
@@ -415,7 +433,9 @@ fun TarjetaConfesion(
     isLikedByCurrentUser: Boolean,
     onLikeClicked: () -> Unit,
     onCardClicked: () -> Unit,
-    onReportClicked: () -> Unit
+    onReportClicked: () -> Unit,
+    onMessageClicked: () -> Unit,
+    showMessageButton: Boolean
 ) {
     // Estado local para el feedback visual del botón de reporte
     var reportClicked by remember { mutableStateOf(false) }
@@ -490,7 +510,7 @@ fun TarjetaConfesion(
                         )
                     }
 
-                    // --- EDITADO: Se añadió la sección de Comentarios ---
+                    //  Se añadió la sección de Comentarios
                     // Comentarios
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -508,7 +528,25 @@ fun TarjetaConfesion(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
-                } // Fin Grupo Likes y Comentarios
+
+                    // NUEVO BOTÓN DE CHAT
+                    if (showMessageButton) {
+                        IconButton(
+                            onClick = onMessageClicked,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = "Enviar mensaje privado", // TODO: Añadir a strings.xml
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
+
+                // Fin Grupo Likes y Comentarios
 
                 // Hijo 2: Grupo Reporte y Fecha
                 Row(

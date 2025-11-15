@@ -19,6 +19,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.Alignment
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,42 +31,41 @@ fun ProfileScreen(
     val uiState by vm.uiState.collectAsStateWithLifecycle()
     val appBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
 
-    // --- Listas de Opciones ---
-    // (Clave, Valor a mostrar)
+    // --- Listas de Opciones (sin cambios) ---
     val genderOptions = mapOf(
         "male" to "Hombre",
         "female" to "Mujer",
         "other" to "Otro"
     )
     val ageOptions = (14..99).toList()
-
-    // Lista de países: (CL, Chile), (AR, Argentina), etc.
     val countryOptions = remember {
         Locale.getISOCountries().map { code ->
-            val locale = Locale("es", code) // Usamos español
+            val locale = Locale("es", code)
             code to locale.getDisplayCountry(locale)
-        }.sortedBy { it.second } // Orden alfabético por nombre
+        }.sortedBy { it.second }
     }
 
     // --- Estados Locales para la UI ---
     var selectedGenderKey by remember { mutableStateOf<String?>(null) }
     var selectedAge by remember { mutableStateOf<Int?>(null) }
     var selectedCountryCode by remember { mutableStateOf<String?>(null) }
-    var selectedBadgePref by remember { mutableStateOf("none") } // "none", "gender", "age", "country"
+    // --- NUEVO ESTADO PARA EL SWITCH ---
+    var allowsMessaging by remember { mutableStateOf(true) }
 
-    // Cuando el perfil carga de la BD, actualizamos los estados de la UI
+    // Cuando el perfil carga de la BD, actualizamos todos los estados
     LaunchedEffect(uiState.profile) {
         uiState.profile?.let {
             selectedGenderKey = it.gender
             selectedAge = it.age
             selectedCountryCode = it.countryCode
+            allowsMessaging = it.allowsMessaging // <-- AÑADIDO
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi Perfil Opcional") },
+                title = { Text("Mi Perfil") }, // Título acortado
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -74,15 +74,19 @@ fun ProfileScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = appBarContainerColor),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = appBarContainerColor,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 actions = {
-                    // Botón de Guardar en la barra
+                    // Botón de Guardar (llamada actualizada)
                     TextButton(onClick = {
                         vm.onSaveProfile(
                             gender = selectedGenderKey,
                             age = selectedAge,
-                            countryCode = selectedCountryCode
-
+                            countryCode = selectedCountryCode,
+                            allowsMessaging = allowsMessaging // <-- AÑADIDO
                         )
                         onNavigateBack() // Cerramos
                     }) {
@@ -98,40 +102,67 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp) // Más espacio
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
             if (uiState.isLoading) {
-                CircularProgressIndicator()
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             } else {
-                Text(
-                    "Esta información es opcional y se usará de forma anónima.",
-                    style = MaterialTheme.typography.bodyMedium
+
+                // --- CAMPO DE NOMBRE ANÓNIMO (AÑADIDO) ---
+                OutlinedTextField(
+                    value = uiState.profile?.anonymousName ?: "Cargando...",
+                    onValueChange = {},
+                    label = { Text("Tu nombre anónimo") },
+                    modifier = Modifier.fillMaxWidth(),
+                    readOnly = true, // No se puede editar
+                    supportingText = { Text("Este nombre es permanente y te identifica anónimamente.") }
                 )
 
-                // --- 1. Selector de Género ---
+                // --- 1. Selector de Género (sin cambios) ---
                 DropdownSelector(
                     label = "Género",
-                    options = genderOptions, // Pasamos el Map
+                    options = genderOptions,
                     selectedKey = selectedGenderKey,
                     onKeySelected = { selectedGenderKey = it }
                 )
 
-                // --- 2. Selector de Edad ---
+                // --- 2. Selector de Edad (sin cambios) ---
                 DropdownSelector(
                     label = "Edad",
-                    options = ageOptions.associateWith { it.toString() }, // (25, "25")
+                    options = ageOptions.associateWith { it.toString() },
                     selectedKey = selectedAge,
                     onKeySelected = { selectedAge = it }
                 )
 
-                // --- 3. Selector de País ---
+                // --- 3. Selector de País (sin cambios) ---
                 DropdownSelector(
                     label = "País",
-                    options = countryOptions.toMap(), // (CL, Chile)
+                    options = countryOptions.toMap(),
                     selectedKey = selectedCountryCode,
                     onKeySelected = { selectedCountryCode = it }
                 )
+
+                // --- 4. PREFERENCIA DE MENSAJERÍA (AÑADIDO) ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Aceptar mensajes privados",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f) // Ocupa el espacio restante
+                    )
+                    Switch(
+                        checked = allowsMessaging,
+                        onCheckedChange = { allowsMessaging = it }
+                    )
+                }
             }
         }
     }

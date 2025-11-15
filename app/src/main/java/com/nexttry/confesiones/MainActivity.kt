@@ -36,6 +36,8 @@ import com.nexttry.confesiones.ui.feed.FeedScreen
 import com.nexttry.confesiones.ui.theme.ConfesionesTheme
 import com.nexttry.confesiones.ui.detail.ConfessionDetailScreen
 import com.nexttry.confesiones.ui.myposts.MyPostsScreen
+import com.nexttry.confesiones.ui.conversation.ConversationScreen
+import com.nexttry.confesiones.ui.chatlist.ChatListScreen
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import com.nexttry.confesiones.ui.newconfession.NewConfessionScreen
@@ -48,6 +50,13 @@ import com.nexttry.confesiones.R
 import com.nexttry.confesiones.ui.profile.ProfileScreen
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.nexttry.confesiones.BuildConfig
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.nexttry.confesiones.data.ConfesionRepository
+import com.nexttry.confesiones.data.UserProfile
+import kotlinx.coroutines.flow.firstOrNull
 
 
 class MainActivity : ComponentActivity() {
@@ -96,6 +105,54 @@ fun AppNavigator(prefsRepository: UserPreferencesRepository) {
     val communityId by prefsRepository.selectedCommunityId.collectAsState(initial = null)
     val currentCommunityId = communityId
 
+    // 1. Obtenemos el ID de usuario actual
+    val userId = Firebase.auth.currentUser?.uid
+    // 2. Creamos una instancia del repositorio (solo la usaremos aquí)
+    val repository = remember { ConfesionRepository() }
+
+    // 3. Este efecto se ejecuta cada vez que el userId cambia (de null a un valor)
+    LaunchedEffect(userId) {
+        // Si no hay usuario, no hagas nada
+        if (userId == null) return@LaunchedEffect
+
+        // Comprobamos si el usuario ya tiene un perfil en Firestore
+        val userProfile = repository.getUserProfileStream(userId).firstOrNull()
+
+        if (userProfile == null) {
+            // CASO 1:
+            // El perfil no existe en absoluto. Creamos uno.
+            try {
+                val newAnonymousName = "Usuario${(10000..99999).random()}"
+                val newProfile = UserProfile(
+                    anonymousName = newAnonymousName,
+                    allowsMessaging = true // Por defecto, acepta mensajes
+                )
+                repository.updateUserProfile(userId, newProfile)
+                Log.d("AppNavigator", "Nuevo perfil CREADO con nombre: $newAnonymousName")
+            } catch (e: Exception) {
+                Log.e("AppNavigator", "Error al CREAR perfil de usuario", e)
+            }
+        } else if (userProfile.anonymousName == null) {
+            // CASO 2: Usuario ANTIGUO
+            // El perfil SÍ existe, pero le falta el nombre anónimo.
+            try {
+                val newAnonymousName = "Usuario${(10000..99999).random()}"
+                // Copiamos el perfil existente y SOLO añadimos el nombre
+                val updatedProfile = userProfile.copy(anonymousName = newAnonymousName)
+
+                repository.updateUserProfile(userId, updatedProfile)
+                Log.d("AppNavigator", "Perfil ANTIGUO ACTUALIZADO con nombre: $newAnonymousName")
+            } catch (e: Exception) {
+                Log.e("AppNavigator", "Error al ACTUALIZAR perfil de usuario", e)
+            }
+        } else {
+            //CASO 3: Usuario que regresa
+            // El perfil existe y ya tiene nombre. No hacemos nada.
+            Log.d("AppNavigator", "El perfil del usuario ya existe y está completo.")
+        }
+    }
+    // --- FIN DE LÓGICA DE PERFIL ---
+
     if (currentCommunityId == null) {
         // 1. Estado de carga: Reemplazamos el Box simple por nuestro
         //    nuevo Composable de pantalla de carga.
@@ -130,7 +187,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
         popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
         popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) }
     ) {
-        // --- RUTA 1: La pantalla del Feed ---
+        // RUTA 1: La pantalla del Feed
         composable(route = "feed/{communityId}") { backStackEntry ->
 
             val communityId = backStackEntry.arguments?.getString("communityId")
@@ -218,6 +275,23 @@ fun AppNavHost(navController: NavHostController, startDestination: String) {
             ProfileScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        // RUTA 8: PANTALLA DE CONVERSACIÓN
+        composable(route = "conversation/{chatId}") { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId")
+            if (chatId != null) {
+                ConversationScreen(
+                    chatId = chatId,
+                    navController = navController
+                )
+
+            }
+        }
+
+        // RUTA 9: LISTA DE CHATS
+        composable(route = "chat_list") {
+            ChatListScreen(navController = navController)
         }
     }
 }
